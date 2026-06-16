@@ -1,0 +1,19 @@
+[build]
+  publish = "public"
+  functions = "netlify/functions"
+
+# Local dev: `netlify dev` serves /public and the functions together.
+[dev]
+  publish = "public"
+  framework = "#static"
+
+# Friendly paths for the two API forwarders.
+[[redirects]]
+  from = "/api/genshin"
+  to = "/.netlify/functions/genshin"
+  status = 200
+
+[[redirects]]
+  from = "/api/wuwa"
+  to = "/.netlify/functions/wuwa"
+  status = 200

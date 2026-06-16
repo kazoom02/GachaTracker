@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Convene — Genshin &amp; Wuthering Waves pull tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
+</head>
+<body data-game="genshin">
+  <div class="stars" aria-hidden="true"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand__mark">✦</span>
+      <div>
+        <h1>Convene</h1>
+        <p>One pity tracker, two worlds.</p>
+      </div>
+    </div>
+
+    <nav class="tabs" aria-label="Game">
+      <button class="tab tab--on" data-game="genshin">Genshin Impact</button>
+      <button class="tab" data-game="wuwa">Wuthering Waves</button>
+    </nav>
+
+    <button id="data-btn" class="btn btn--ghost">Data</button>
+  </header>
+
+  <section class="importer">
+    <div class="importer__field">
+      <input id="url-input" type="text" autocomplete="off" spellcheck="false"
+             placeholder="Paste your wish-history URL" />
+      <button id="import-btn" class="btn btn--accent">Import new pulls</button>
+    </div>
+    <p id="status" class="status">Only new pulls are read — your old history stays as it is.</p>
+    <p class="privacy">
+      Your link holds a temporary access key. It's sent only to the official game server through this site's forwarder, and is never stored.
+      <button id="help-btn" class="linklike">How do I get my link?</button>
+    </p>
+  </section>
+
+  <main id="banners" class="banners"></main>
+
+  <footer class="foot">
+    <p>Data lives in your browser. Use <b>Data</b> to back it up to your computer or Google Drive.</p>
+    <p class="muted">New here? Tap <b>How do I get my link?</b> above. Drop character art into <code>icons/</code> to show portraits (see icons/README.txt).</p>
+  </footer>
+
+  <!-- Data panel -->
+  <div id="panel" class="panel">
+    <div class="panel__sheet" role="dialog" aria-modal="true" aria-label="Data">
+      <header class="panel__head">
+        <h2>Your data</h2>
+        <button id="panel-close" class="btn btn--ghost" aria-label="Close">✕</button>
+      </header>
+
+      <p class="panel__lead">Pulls are saved in this browser automatically. Keep a copy somewhere safe:</p>
+
+      <div class="dropzone" id="dropzone">
+        <div class="dropzone__inner">
+          <span class="dropzone__icon">⤵</span>
+          <p><b>Drop a file here</b> or <button id="pick-file" class="linklike">choose one</button></p>
+          <p class="muted">Genshin <code>.xlsx</code> · Wuthering Waves <code>.json</code> · or a full backup <code>.json</code></p>
+        </div>
+        <input id="file-input" type="file" accept=".xlsx,.xls,.json,application/json" hidden />
+      </div>
+
+      <div class="panel__grid">
+        <section class="block">
+          <h3>Export Genshin</h3>
+          <button id="export-genshin" class="btn btn--accent block__btn">Download .xlsx</button>
+          <p class="muted block__note">Per-banner sheets, paimon.moe-style.</p>
+        </section>
+
+        <section class="block">
+          <h3>Export Wuthering Waves</h3>
+          <button id="export-wuwa" class="btn btn--accent block__btn">Download .json</button>
+          <p class="muted block__note">Convene history with rarities.</p>
+        </section>
+
+        <section class="block">
+          <h3>Google Drive</h3>
+          <button id="drive-save" class="btn btn--line block__btn">Back up to Drive</button>
+          <button id="drive-load" class="btn btn--line block__btn">Restore from Drive</button>
+          <p id="drive-note" class="muted block__note"></p>
+        </section>
+
+        <section class="block">
+          <h3>Everything</h3>
+          <button id="export-all" class="btn btn--line block__btn">Full backup .json</button>
+          <p class="muted block__note">Both games in one file.</p>
+        </section>
+      </div>
+
+      <p id="panel-msg" class="status"></p>
+
+      <section class="block block--danger">
+        <h3>Danger zone</h3>
+        <button id="clear-data" class="btn btn--danger block__btn">Clear all stored pulls</button>
+      </section>
+    </div>
+  </div>
+
+  <!-- How to get your link -->
+  <div id="help-panel" class="panel">
+    <div class="panel__sheet" role="dialog" aria-modal="true" aria-label="How to get your link">
+      <header class="panel__head">
+        <h2>Get your history link</h2>
+        <button id="help-close" class="btn btn--ghost" aria-label="Close">✕</button>
+      </header>
+      <p class="panel__lead">Run the matching script in <b>PowerShell</b> on your PC, then paste the link it prints.</p>
+      <div id="help-body"></div>
+    </div>
+  </div>
+
+  <!-- Full-page drag target -->
+  <div id="drop-overlay" class="drop-overlay">
+    <div class="drop-overlay__card">
+      <span class="drop-overlay__icon">⤵</span>
+      <p>Drop to import</p>
+      <p class="muted">Genshin .xlsx · Wuthering Waves .json · backup .json</p>
+    </div>
+  </div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

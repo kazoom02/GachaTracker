@@ -130,7 +130,7 @@ h1, h2, h3 { font-family: 'Space Grotesk', 'Inter', sans-serif; letter-spacing: 
 /* ── Banner grid ───────────────────────────────────────── */
 .banners {
   display: grid; gap: 18px; padding: 20px clamp(16px, 4vw, 48px) 40px;
-  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); max-width: 1300px;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
 }
 .card {
   background: linear-gradient(180deg, var(--panel), var(--panel-2));
@@ -992,7 +992,6 @@ body::before {
 
 .banners {
   display: block;
-  max-width: 1240px;
 }
 
 .tracker-shell {

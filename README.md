@@ -10,64 +10,65 @@ to **Google Drive** at any time.
 
 ---
 
-## Why it needs Netlify (and can't be a plain HTML file)
+## Why it needs Vercel (and can't be a plain HTML file)
 
 The browser cannot call HoYoverse's or Kuro Games' APIs directly — those servers don't
 send CORS headers, so the request is blocked. paimon.moe and wuwatracker solve this with
-their own backend. This project does the same with two tiny **Netlify Functions** that
+their own backend. This project does the same with two tiny **Vercel Functions** that
 forward your request to the official game server and pass the answer back. They store and
 log nothing.
 
 ```
 public/                 ← the static site (HTML/CSS/JS)
-netlify/functions/
+api/
    genshin.js           ← forwards one getGachaLog page to HoYoverse
    wuwa.js              ← forwards one convene query to Kuro Games
-netlify.toml            ← tells Netlify where everything lives
+vercel.json             ← tells Vercel where everything lives
 ```
 
 ---
 
-## Deploy to Netlify
+## Deploy to Vercel
 
-**Option A — drag & drop (fastest)**
-1. Go to <https://app.netlify.com/drop>.
-2. Drag the **whole project folder** onto the page.
-3. Done — you get a live URL. (Functions deploy automatically from `netlify/functions`.)
-
-**Option B — Git + CLI**
+**Option A — Git (recommended)**
 1. Push this folder to a GitHub repo.
-2. In Netlify: *Add new site → Import an existing project* → pick the repo.
-3. Leave build command empty; publish directory is `public` (already in `netlify.toml`).
+2. Go to <https://vercel.com/new> and import the repo.
+3. Leave all build settings at their defaults — `vercel.json` handles everything.
+
+**Option B — CLI**
+```bash
+npm install -g vercel
+vercel --prod
+```
 
 **Run it locally**
 ```bash
-npm install -g netlify-cli
-netlify dev
+npm install -g vercel
+vercel dev
 ```
-Open the URL it prints (usually <http://localhost:8888>). You need `netlify dev` rather
+Open the URL it prints (usually <http://localhost:3000>). You need `vercel dev` rather
 than opening `index.html` directly, because the `/api/*` forwarders must run.
 
 ---
 
 ## Getting your history link
 
-You generate the link once per session with the same scripts these trackers already use.
+You generate the link once per session using the scripts included in this repo.
 Run the matching command in **PowerShell** (Windows) after opening the game's history
 screen in-game.
 
 **Genshin Impact** — open *Wish → History* in-game first, then:
 ```powershell
-Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex "&{$((New-Object System.Net.WebClient).DownloadString('https://gist.github.com/MadeBaruna/1d75c1d37d19eca71591ec8a31178235/raw/getlink.ps1'))} global"
+powershell -ExecutionPolicy Bypass -File ".\scripts\get-genshin-url.ps1"
 ```
 
 **Wuthering Waves** — open *Convene → Convene History* in-game first, then:
 ```powershell
-iwr -UseBasicParsing -Headers @{"User-Agent"="Mozilla/5.0"} https://raw.githubusercontent.com/wuwatracker/wuwatracker/c46dbadc006ed0d2c3f3a20b06b448a45475d32b/import.ps1 | iex
+powershell -ExecutionPolicy Bypass -File ".\scripts\get-wuwa-url.ps1"
 ```
 
-Each script prints a long `https://…` URL. Copy it, pick the matching game tab on the
-site, paste, and click **Import new pulls**.
+Each script finds the URL automatically, prints it, and copies it to your clipboard.
+Pick the matching game tab on the site, paste, and click **Import new pulls**.
 
 > The link contains a temporary access key (`authkey` / `record_id`) that expires after a
 > day or so. Don't post it publicly. When it stops working, just re-run the script.

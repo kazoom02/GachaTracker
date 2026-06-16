@@ -1,7 +1,3 @@
 {
-  "outputDirectory": "public",
-  "rewrites": [
-    { "source": "/api/genshin", "destination": "/api/genshin" },
-    { "source": "/api/wuwa",    "destination": "/api/wuwa" }
-  ]
+  "outputDirectory": "public"
 }

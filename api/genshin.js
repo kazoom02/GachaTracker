@@ -1,9 +1,9 @@
 // api/genshin.js
-// Vercel serverless function — proxies one getGachaLog page to HoYoverse.
-// The browser cannot call HoYoverse directly (no CORS headers), so the
-// frontend calls /api/genshin?<same query string> and we forward it here.
+// Vercel serverless function — proxies getGachaLog requests to HoYoverse.
 //
-// Supports both Global (os_*) and CN (cn_*) regions.
+// The frontend POSTs { authUrl, gachaType, page, size, endId, lang }.
+// We extract auth params from authUrl, add the pagination params, and
+// forward to the correct CN or Global endpoint.
 
 const ENDPOINTS = {
   global: 'https://public-operation-hk4e-sg.hoyoverse.com/gacha_info/api/getGachaLog',
@@ -11,20 +11,48 @@ const ENDPOINTS = {
 };
 
 module.exports = async function handler(req, res) {
-  if (req.method !== 'GET') {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+
+  if (req.method === 'OPTIONS') {
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+    return res.status(204).end();
+  }
+
+  if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  const params = req.query;
+  const { authUrl, gachaType, page = 1, size = 20, endId = '0', lang } = req.body || {};
 
-  // Pick CN vs Global endpoint from the region param
-  const region   = (params.region ?? '').toLowerCase();
+  if (!authUrl) {
+    return res.status(400).json({ retcode: -1, message: 'authUrl is required' });
+  }
+
+  // Parse auth params out of the URL the user pasted
+  let authParams;
+  try {
+    authParams = new URL(authUrl.trim()).searchParams;
+  } catch {
+    return res.status(400).json({ retcode: -1, message: 'Invalid authUrl — paste the full https:// link.' });
+  }
+
+  // Pick CN vs Global from the region param embedded in the auth URL
+  const region   = (authParams.get('region') || '').toLowerCase();
   const base     = region.startsWith('cn_') ? ENDPOINTS.cn : ENDPOINTS.global;
   const upstream = new URL(base);
 
-  for (const [k, v] of Object.entries(params)) {
+  // Forward every auth param from the pasted URL as-is
+  for (const [k, v] of authParams.entries()) {
     upstream.searchParams.set(k, v);
   }
+
+  // Add / override per-request pagination params
+  upstream.searchParams.set('gacha_type', gachaType);
+  upstream.searchParams.set('page',       String(page));
+  upstream.searchParams.set('size',       String(size));
+  upstream.searchParams.set('end_id',     String(endId));
+  if (lang) upstream.searchParams.set('lang', lang);
 
   let upstreamRes;
   try {
@@ -32,12 +60,10 @@ module.exports = async function handler(req, res) {
       headers: { 'User-Agent': 'okhttp/4.9.3' },
     });
   } catch (err) {
-    return res.status(502).json({ error: 'Failed to reach HoYoverse API', detail: err.message });
+    return res.status(502).json({ retcode: -1, message: 'Failed to reach HoYoverse: ' + err.message });
   }
 
   const body = await upstreamRes.text();
-
   res.setHeader('Content-Type', upstreamRes.headers.get('content-type') ?? 'application/json');
-  res.setHeader('Access-Control-Allow-Origin', '*');
   return res.status(upstreamRes.status).send(body);
 };

@@ -2,10 +2,10 @@
   "name": "gacha-tracker",
   "version": "1.0.0",
   "private": true,
-  "description": "Self-hosted Genshin Impact + Wuthering Waves pull tracker (Netlify).",
+  "description": "Self-hosted Genshin Impact + Wuthering Waves pull tracker (Vercel).",
   "scripts": {
-    "dev": "netlify dev",
-    "deploy": "netlify deploy --prod"
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
   },
   "engines": {
     "node": ">=18"

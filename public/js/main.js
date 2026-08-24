@@ -17,7 +17,7 @@ import {
 import { importGenshin, importWuwa } from './import.js?v=20260824f';
 import { driveEnabled, driveSave, driveLoad } from './drive.js?v=20260824f';
 import { exportGenshinXlsx, exportWuwaJson, exportFullBackup, importFromFile } from './files.js?v=20260824f';
-import { paginateHighlights } from './highlight-view.js?v=20260824f';
+import { filterHighlights } from './highlight-view.js?v=20260824g';
 
 let currentGame = 'genshin';
 const selectedBanner = { genshin: null, wuwa: null };
@@ -27,8 +27,6 @@ const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&l
 const viewState = {
   recentRarity: 5,
   recentOrder: 'newest',
-  recentPage: 1,
-  recentPageSize: 40,
   historyPage: 1,
   historyPageSize: 10,
   historySearch: '',
@@ -84,7 +82,6 @@ function resetProfileView() {
   selectedBanner.genshin = null;
   selectedBanner.wuwa = null;
   viewState.historyPage = 1;
-  viewState.recentPage = 1;
   viewState.historySearch = '';
   viewState.historyRarityFilter = 0;
   $('#url-input').value = '';
@@ -206,7 +203,6 @@ function renderBanners() {
   wrap.querySelectorAll('.banner-option').forEach((btn) => {
     btn.addEventListener('click', () => {
       selectedBanner[currentGame] = btn.dataset.banner;
-      viewState.recentPage = 1;
       viewState.historyPage = 1;
       renderBanners();
     });
@@ -287,7 +283,6 @@ function selectedDashboard(banner, pulls) {
           </div>
         </header>
         <div class="recent-list" data-banner-key="${esc(banner.key)}">${renderRecentList(rows, banner.key)}</div>
-        <footer class="panel-pager recent-pager">${renderRecentPager(rows)}</footer>
       </article>
     </div>
 
@@ -322,7 +317,6 @@ function bindDashboardControls(bannerKey, pulls) {
   document.querySelectorAll('[data-recent-rarity]').forEach((btn) => {
     btn.addEventListener('click', () => {
       viewState.recentRarity = Number(btn.dataset.recentRarity);
-      viewState.recentPage = 1;
       document.querySelectorAll('[data-recent-rarity]').forEach((b) => {
         b.classList.toggle('star-toggle--on', Number(b.dataset.recentRarity) === viewState.recentRarity);
       });
@@ -334,13 +328,10 @@ function bindDashboardControls(bannerKey, pulls) {
   if (orderButton) {
     orderButton.addEventListener('click', () => {
       viewState.recentOrder = viewState.recentOrder === 'newest' ? 'oldest' : 'newest';
-      viewState.recentPage = 1;
       orderButton.textContent = viewState.recentOrder === 'oldest' ? 'Oldest first ↑' : 'Newest first ↓';
       renderRecentSection(rows, bannerKey);
     });
   }
-
-  bindRecentPager(rows, bannerKey);
 
   document.querySelectorAll('[data-history-page]').forEach((btn) => {
     btn.addEventListener('click', () => {
@@ -417,56 +408,22 @@ function filteredHistoryRows(rows) {
   return r;
 }
 
-function recentPage(rows) {
-  return paginateHighlights(rows, {
+function recentRows(rows) {
+  return filterHighlights(rows, {
     rarity: viewState.recentRarity,
     order: viewState.recentOrder,
-    page: viewState.recentPage,
-    pageSize: viewState.recentPageSize,
   });
 }
 
 function renderRecentList(rows, bannerKey) {
-  const page = recentPage(rows);
-  viewState.recentPage = page.page;
-  if (!page.items.length) return `<p class="muted empty-inline">No ${viewState.recentRarity}-star pulls on this banner yet.</p>`;
-  return page.items.map((r) => recentBubble(r, bannerKey)).join('');
-}
-
-function renderRecentPager(rows) {
-  const page = recentPage(rows);
-  viewState.recentPage = page.page;
-  return `
-    <span>Items per page <b>${viewState.recentPageSize}</b></span>
-    <span class="history-range">${page.start}-${page.end} of ${page.total}</span>
-    <span class="pager-buttons">
-      <button data-recent-page="first" ${page.page <= 1 ? 'disabled' : ''}>|&lt;</button>
-      <button data-recent-page="prev" ${page.page <= 1 ? 'disabled' : ''}>&lt;</button>
-      <button data-recent-page="next" ${page.page >= page.maxPage ? 'disabled' : ''}>&gt;</button>
-      <button data-recent-page="last" ${page.page >= page.maxPage ? 'disabled' : ''}>&gt;|</button>
-    </span>`;
+  const highlights = recentRows(rows);
+  if (!highlights.length) return `<p class="muted empty-inline">No ${viewState.recentRarity}-star pulls on this banner yet.</p>`;
+  return highlights.map((r) => recentBubble(r, bannerKey)).join('');
 }
 
 function renderRecentSection(rows, bannerKey) {
   const list = $('.recent-list');
-  const pager = $('.recent-pager');
   if (list) list.innerHTML = renderRecentList(rows, bannerKey);
-  if (pager) pager.innerHTML = renderRecentPager(rows);
-  bindRecentPager(rows, bannerKey);
-}
-
-function bindRecentPager(rows, bannerKey) {
-  document.querySelectorAll('[data-recent-page]').forEach((button) => {
-    button.addEventListener('click', () => {
-      const page = recentPage(rows);
-      const action = button.dataset.recentPage;
-      if (action === 'first') viewState.recentPage = 1;
-      else if (action === 'prev') viewState.recentPage = Math.max(1, page.page - 1);
-      else if (action === 'next') viewState.recentPage = Math.min(page.maxPage, page.page + 1);
-      else if (action === 'last') viewState.recentPage = page.maxPage;
-      renderRecentSection(rows, bannerKey);
-    });
-  });
 }
 
 function historyMaxPage(rows) {

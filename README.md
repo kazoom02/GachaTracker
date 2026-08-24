@@ -87,8 +87,8 @@ Each banner card shows current pity, total pulls, 5★ / 4★ counts, average 5�
 chip per 5★ with the character/weapon name and the pulls it took. Green = lucky (≤50),
 red = late (≥75).
 
-The highlight timeline can be ordered **newest first** or **oldest first** and paged in groups
-of 40, so older five-stars remain reachable even on long histories.
+The highlight timeline shows every matching pull at once and can be ordered **newest first**
+or **oldest first**, so the complete 4★ or 5★ history stays visible.
 
 ---
 

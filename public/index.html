@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=20260824" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 </head>
 <body data-game="genshin">
@@ -15,39 +15,51 @@
 
   <header class="topbar">
     <div class="brand">
-      <span class="brand__mark">✦</span>
+      <span class="brand__mark" aria-hidden="true"><i></i></span>
       <div>
         <h1>Convene</h1>
-        <p>One pity tracker, two worlds.</p>
+        <p>Pull history, beautifully clear.</p>
       </div>
     </div>
 
     <nav class="tabs" aria-label="Game">
-      <button class="tab tab--on" data-game="genshin">Genshin Impact</button>
-      <button class="tab" data-game="wuwa">Wuthering Waves</button>
+      <button class="tab tab--on" data-game="genshin"><span class="tab__dot"></span>Genshin Impact</button>
+      <button class="tab" data-game="wuwa"><span class="tab__dot"></span>Wuthering Waves</button>
     </nav>
 
-    <button id="data-btn" class="btn btn--ghost">Data</button>
+    <button id="data-btn" class="btn btn--ghost"><span aria-hidden="true">↗</span> Manage data</button>
   </header>
 
   <section class="importer">
-    <div class="importer__field">
-      <input id="url-input" type="text" autocomplete="off" spellcheck="false"
-             placeholder="Paste your wish-history URL" />
-      <button id="import-btn" class="btn btn--accent">Import new pulls</button>
+    <div class="importer__intro">
+      <p class="eyebrow"><span></span> Private by design</p>
+      <h2>See the story behind every pull.</h2>
+      <p>Your history stays in this browser. Import a fresh link to update pity, luck, and every banner in one pass.</p>
     </div>
-    <p id="status" class="status">Only new pulls are read — your old history stays as it is.</p>
-    <p class="privacy">
-      Your link holds a temporary access key. It's sent only to the official game server through this site's forwarder, and is never stored.
-      <button id="help-btn" class="linklike">How do I get my link?</button>
-    </p>
+    <div class="import-card">
+      <div class="import-card__label">
+        <span>History link</span>
+        <button id="help-btn" class="linklike">How to get it <span aria-hidden="true">→</span></button>
+      </div>
+      <div class="importer__field">
+        <span class="input-icon" aria-hidden="true">⌁</span>
+        <input id="url-input" type="text" autocomplete="off" spellcheck="false"
+               aria-label="Wish or convene history URL" placeholder="Paste your wish-history URL" />
+        <button id="import-btn" class="btn btn--accent">Import new pulls <span aria-hidden="true">→</span></button>
+      </div>
+      <div class="import-card__meta">
+        <p id="status" class="status"><span class="status__dot"></span>Only new pulls are read — your saved history is preserved.</p>
+        <p class="privacy"><span aria-hidden="true">⌾</span> Temporary keys are forwarded only to the official game API and never stored.</p>
+      </div>
+    </div>
   </section>
 
   <main id="banners" class="banners"></main>
 
   <footer class="foot">
-    <p>Data lives in your browser. Use <b>Data</b> to back it up to your computer or Google Drive.</p>
-    <p class="muted">New here? Tap <b>How do I get my link?</b> above. Drop character art into <code>icons/</code> to show portraits (see icons/README.txt).</p>
+    <div class="foot__brand"><span class="brand__mark brand__mark--small" aria-hidden="true"><i></i></span><b>Convene</b></div>
+    <p>Local-first pull tracking for two worlds. Back up anytime from <b>Manage data</b>.</p>
+    <p class="muted">Character art can be customized in <code>icons/</code>. This fan project is not affiliated with HoYoverse or Kuro Games.</p>
   </footer>
 
   <!-- Data panel -->
@@ -126,6 +138,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js"></script>
+  <script type="module" src="js/main.js?v=20260824"></script>
 </body>
 </html>

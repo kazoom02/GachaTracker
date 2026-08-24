@@ -1,9 +1,9 @@
 // js/main.js
-import { GAMES, GENSHIN_BANNERS, wuwaBanner, wuwaBannersFor, iconCandidates, setManifest, LINK_GUIDES } from './config.js';
-import { getData, clearAll, analyze, replaceAll } from './store.js';
-import { importGenshin, importWuwa } from './import.js';
-import { driveEnabled, driveSave, driveLoad } from './drive.js';
-import { exportGenshinXlsx, exportWuwaJson, exportFullBackup, importFromFile } from './files.js';
+import { GAMES, GENSHIN_BANNERS, wuwaBanner, wuwaBannersFor, iconCandidates, setManifest, LINK_GUIDES } from './config.js?v=20260824';
+import { getData, clearAll, analyze, replaceAll } from './store.js?v=20260824';
+import { importGenshin, importWuwa } from './import.js?v=20260824';
+import { driveEnabled, driveSave, driveLoad } from './drive.js?v=20260824';
+import { exportGenshinXlsx, exportWuwaJson, exportFullBackup, importFromFile } from './files.js?v=20260824';
 
 let currentGame = 'genshin';
 const selectedBanner = { genshin: null, wuwa: null };
@@ -52,6 +52,7 @@ function renderBanners() {
   wrap.innerHTML = `
     <section class="tracker-shell">
       <aside class="banner-rail" aria-label="${esc(game.label)} banners">
+        <div class="banner-rail__head"><span>Banners</span><small>${banners.length} tracked</small></div>
         ${banners.map((b) => bannerOption(b, data[b.key] || [], String(b.key) === String(selected.key))).join('')}
       </aside>
       <section class="tracker-view">
@@ -84,7 +85,7 @@ function bannerOption(banner, pulls, active) {
   const a = analyze(pulls);
   const pct = Math.min(100, Math.round((a.currentPity / banner.hardPity) * 100));
   return `
-    <button class="banner-option ${active ? 'banner-option--on' : ''}" data-banner="${esc(banner.key)}">
+    <button class="banner-option ${active ? 'banner-option--on' : ''}" data-banner="${esc(banner.key)}" aria-pressed="${active}">
       <span class="banner-option__pity">${a.currentPity}/${banner.hardPity}</span>
       <span class="banner-option__label">5&#9733; Pity</span>
       <span class="banner-option__pity banner-option__pity--four">${a.current4Pity}/10</span>
@@ -109,11 +110,13 @@ function selectedDashboard(banner, pulls) {
   const fourRatio = pulls.length ? (a.count4 / pulls.length) * 100 : 0;
   const fiveRatio = pulls.length ? (a.count5 / pulls.length) * 100 : 0;
   const currencyName = currentGame === 'wuwa' ? 'Total Astrites' : 'Total Primogems';
+  const recentTitle = currentGame === 'wuwa' ? 'Recent Convenes' : 'Recent Wishes';
 
   return `
     <div class="tracker-main">
       <div class="tracker-top">
         <article class="tracker-panel tracker-summary">
+          <span class="panel-kicker">Banner overview</span>
           <h2>${esc(banner.name)}</h2>
           ${metricRow('Total Pulls', pulls.length.toLocaleString())}
           ${metricRow(currencyName, (pulls.length * 160).toLocaleString())}
@@ -122,7 +125,7 @@ function selectedDashboard(banner, pulls) {
         </article>
 
         <article class="tracker-panel luck-panel">
-          <header><h2>5&#10022; Luck Rating</h2><span>&lsaquo; &rsaquo;</span></header>
+          <header><div><span class="panel-kicker">Your statistics</span><h2>5&#9733; Luck rating</h2></div><span class="luck-panel__spark">✦</span></header>
           ${luckRow('Average Pity', a.count5 ? a.avgPity.toFixed(2) : '-', a.count5 ? Math.max(8, 100 - a.avgPity) : 0)}
           ${luckRow('Pull Ratio', fiveRatio.toFixed(2) + '%', Math.min(100, fiveRatio * 30))}
           ${luckRow('4&#9733; Ratio', fourRatio.toFixed(2) + '%', Math.min(100, fourRatio * 4))}
@@ -131,7 +134,7 @@ function selectedDashboard(banner, pulls) {
 
       <article class="tracker-panel recent-panel">
         <header class="section-head">
-          <h2>Recent Convenes</h2>
+          <div><span class="panel-kicker">Latest highlights</span><h2>${recentTitle}</h2></div>
           <div class="star-toggle">
             <button data-recent-rarity="4" class="${viewState.recentRarity === 4 ? 'star-toggle--on' : ''}">4 &#10022;</button>
             <button data-recent-rarity="5" class="${viewState.recentRarity === 5 ? 'star-toggle--on' : ''}">5 &#10022;</button>
@@ -144,7 +147,7 @@ function selectedDashboard(banner, pulls) {
 
     <article class="tracker-panel history-panel">
       <header class="section-head">
-        <h2>Pull History</h2>
+        <div><span class="panel-kicker">Complete archive</span><h2>Pull history</h2></div>
       </header>
       <div class="history-tools">
         <input class="history-search" type="text" placeholder="Search by name..." value="${esc(viewState.historySearch)}" autocomplete="off" spellcheck="false" />
@@ -420,6 +423,9 @@ async function runImport() {
       setStatus(`Imported ${totalNew} new ${totalNew === 1 ? 'pull' : 'pulls'}. ${parts ? '(' + parts + ')' : ''}`, 'ok');
     }
   } catch (err) {
+    // WuWa commits each successful pool as it arrives, so show partial progress even
+    // if a later pool request fails.
+    renderBanners();
     setStatus(err.message || String(err), 'err');
   } finally {
     btn.disabled = false;

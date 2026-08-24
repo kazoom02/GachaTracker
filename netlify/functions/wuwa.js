@@ -49,8 +49,10 @@ exports.handler = async (event) => {
     recordId: String(recordId),
   });
 
+  const wantsCn = String(event.queryStringParameters?.server || '').toLowerCase() === 'cn';
+  const hosts = wantsCn ? [HOSTS[1], HOSTS[0]] : HOSTS;
   let lastErr = null;
-  for (const host of HOSTS) {
+  for (const host of hosts) {
     try {
       const upstream = await fetch(host + PATH, {
         method: 'POST',

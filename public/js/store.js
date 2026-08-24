@@ -1,7 +1,8 @@
 // js/store.js
 // Browser storage + the logic that keeps only NEW pulls and computes pity.
 
-import { STORAGE_KEY, GENSHIN_BANNERS } from './config.js';
+import { STORAGE_KEY, GENSHIN_BANNERS } from './config.js?v=20260824';
+import { mergeWuwaHistory } from './wuwa-merge.js?v=20260824';
 
 function emptyData() {
   const genshin = {};
@@ -124,17 +125,15 @@ export function replaceWuwaPool(key, listAsc) {
   return listAsc.length;
 }
 
-// Live import: the API returns the full pool history each time. Adopt it, but never
-// shrink — if the API returned fewer than we already have (e.g. it trimmed old records),
-// keep the larger stored history. Returns how many pulls were added.
+// Live import: Kuro can return either the full pool history or a rolling recent window.
+// Reconcile the overlapping sequences so new pulls are still appended when the response
+// is shorter than the browser's stored history. Returns how many pulls were added.
 export function mergeWuwaPoolFresh(key, freshAsc) {
   const k = String(key);
   const stored = DATA.wuwa[k] || [];
-  if (freshAsc.length >= stored.length) {
-    DATA.wuwa[k] = freshAsc.slice();
-    return freshAsc.length - stored.length;
-  }
-  return 0;
+  const merged = mergeWuwaHistory(stored, freshAsc);
+  DATA.wuwa[k] = merged.list;
+  return merged.added;
 }
 
 // Genshin file import (.xlsx) is also a full snapshot per banner — replace it.

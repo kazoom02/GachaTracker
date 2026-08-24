@@ -216,7 +216,9 @@ function ReadSharedFileBytes {
         $stream = [System.IO.File]::Open($path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, $fileShare)
         $memoryStream = [System.IO.MemoryStream]::new()
         $stream.CopyTo($memoryStream)
-        return $memoryStream.ToArray()
+        # Prevent PowerShell from unrolling byte[] into object[]; the decoder relies on
+        # receiving one mutable byte array when Client.log is obfuscated.
+        return ,$memoryStream.ToArray()
     } finally {
         if ($memoryStream) { $memoryStream.Dispose() }
         if ($stream) { $stream.Dispose() }

@@ -1,8 +1,8 @@
 // js/import.js
 // Orchestrates importing NEW pulls only, by calling the /api forwarders.
 
-import { GENSHIN_BANNERS, WUWA_QUERY_TYPES, wuwaBanner } from './config.js';
-import { addGenshinPulls, mergeWuwaPoolFresh, genshinKnownMaxId, bigIntGt, save } from './store.js';
+import { GENSHIN_BANNERS, WUWA_QUERY_TYPES, wuwaBanner } from './config.js?v=20260824';
+import { addGenshinPulls, mergeWuwaPoolFresh, genshinKnownMaxId, bigIntGt, save } from './store.js?v=20260824';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -88,32 +88,49 @@ export async function importWuwa(conveneUrl, onProgress = () => {}) {
   for (const poolType of WUWA_QUERY_TYPES) {
     const banner = wuwaBanner(poolType);
     onProgress(`Wuthering Waves · ${banner.name} · reading pulls`);
-    const res = await fetch('/api/wuwa', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        playerId: params.playerId,
-        cardPoolId: params.cardPoolId,
-        cardPoolType: Number(poolType),
-        serverId: params.serverId,
-        languageCode: params.languageCode,
-        recordId: params.recordId,
-      }),
-    });
-    const json = await res.json();
+    try {
+      const res = await fetch(`/api/wuwa?server=${encodeURIComponent(params.server)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          playerId: params.playerId,
+          cardPoolId: params.cardPoolId,
+          cardPoolType: Number(poolType),
+          serverId: params.serverId,
+          languageCode: params.languageCode,
+          recordId: params.recordId,
+        }),
+      });
 
-    if (json.code !== 0) {
-      // Some pool types may not exist for this account — skip those, remember the error.
-      lastError = `Kuro error ${json.code}: ${json.message || 'request rejected'}`;
-      continue;
+      const text = await res.text();
+      let json;
+      try {
+        json = JSON.parse(text);
+      } catch {
+        throw new Error(`The import service returned an unreadable response (HTTP ${res.status}).`);
+      }
+      if (!res.ok) throw new Error(json.error || `Import service error (HTTP ${res.status}).`);
+
+      if (json.code !== 0) {
+        // Some pool types may not exist for this account — skip those, remember the error.
+        lastError = `Kuro error ${json.code}: ${json.message || 'request rejected'}`;
+      } else {
+        okPools++;
+        const list = Array.isArray(json.data) ? json.data : []; // newest-first
+        const asc = list.map(normalizeWuwa).reverse(); // oldest-first
+        const added = mergeWuwaPoolFresh(banner.key, asc);
+        if (added) {
+          perBanner[banner.key] = added;
+          totalNew += added;
+          // Commit every successful pool immediately. A later unavailable/unknown pool
+          // must never make already-read pulls disappear on refresh.
+          save();
+        }
+      }
+    } catch (err) {
+      lastError = err.message || String(err);
     }
-    okPools++;
-    const list = json.data || []; // newest-first
-    const asc = list.map(normalizeWuwa).reverse(); // oldest-first
-    const added = mergeWuwaPoolFresh(banner.key, asc);
-    if (added) perBanner[banner.key] = added;
-    totalNew += added;
-    await sleep(150);
+    await sleep(250);
   }
 
   // If every pool failed, the link itself is almost certainly the problem.
@@ -127,6 +144,7 @@ export async function importWuwa(conveneUrl, onProgress = () => {}) {
 
 function normalizeWuwa(it) {
   return {
+    resourceId: it.resourceId != null ? String(it.resourceId) : '',
     name: it.name,
     rarity: Number(it.qualityLevel),
     itemType: it.resourceType || '', // "Resonator" | "Weapon"
@@ -157,6 +175,7 @@ export function parseWuwaUrl(raw) {
       serverId,
       cardPoolId: p.get('resources_id') || '',
       languageCode: p.get('lang') || 'en',
+      server: /aki-game\.com$/i.test(url.hostname) && !/-oversea\./i.test(url.hostname) ? 'cn' : 'global',
     };
   } catch {
     return null;

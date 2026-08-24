@@ -1,7 +1,7 @@
 // js/config.js
 // Central configuration: banner definitions for both games + optional Google Drive setup.
 
-import { md5 } from './md5.js';
+import { md5 } from './md5.js?v=20260824';
 
 // ── Google Drive (optional) ────────────────────────────────────────────────
 // Leave blank to disable Drive sync (PC export/import and browser storage still work).
@@ -112,7 +112,7 @@ export const LINK_GUIDES = {
       'On your PC, open PowerShell and paste this, then press Enter:',
     ],
     script:
-      'iwr -UseBasicParsing -Headers @{"User-Agent"="Mozilla/5.0"} https://raw.githubusercontent.com/wuwatracker/wuwatracker/c46dbadc006ed0d2c3f3a20b06b448a45475d32b/import.ps1 | iex',
+      'iwr -UseBasicParsing -Headers @{"User-Agent"="Mozilla/5.0"} https://raw.githubusercontent.com/wuwatracker/wuwatracker/main/import.ps1 | iex',
     after: 'Copy the link it prints, paste it into the box above, and import.',
     credit: 'Script by the wuwatracker project.',
   },

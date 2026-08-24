@@ -23,26 +23,42 @@ module.exports = async function handler(req, res) {
   }
 
   // ?server=cn to hit the CN endpoint, anything else = global
-  const server = (req.query.server ?? 'global').toLowerCase();
-  const base   = server === 'cn' ? ENDPOINTS.cn : ENDPOINTS.global;
+  const server = (req.query?.server ?? 'global').toLowerCase();
+  const preferred = server === 'cn' ? ENDPOINTS.cn : ENDPOINTS.global;
+  const fallback  = server === 'cn' ? ENDPOINTS.global : ENDPOINTS.cn;
 
-  let upstreamRes;
-  try {
-    upstreamRes = await fetch(base, {
-      method:  'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent':   'Mozilla/5.0',
-      },
-      body: JSON.stringify(req.body),
-    });
-  } catch (err) {
-    return res.status(502).json({ error: 'Failed to reach Kuro Games API', detail: err.message });
+  const { playerId, cardPoolType, serverId, recordId } = req.body || {};
+  if (!playerId || !cardPoolType || !serverId || !recordId) {
+    return res.status(400).json({ error: 'Missing required convene parameters' });
   }
 
-  const body = await upstreamRes.text();
+  let lastError = 'No response';
+  for (const endpoint of [preferred, fallback]) {
+    try {
+      const upstreamRes = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Mozilla/5.0',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(req.body),
+      });
+      const body = await upstreamRes.text();
+      let json;
+      try { json = JSON.parse(body); } catch { json = null; }
 
-  res.setHeader('Content-Type', upstreamRes.headers.get('content-type') ?? 'application/json');
+      if (json && typeof json.code !== 'undefined') {
+        res.setHeader('Content-Type', 'application/json');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        return res.status(200).send(JSON.stringify(json));
+      }
+      lastError = `Unexpected upstream response (HTTP ${upstreamRes.status})`;
+    } catch (err) {
+      lastError = err.message;
+    }
+  }
+
   res.setHeader('Access-Control-Allow-Origin', '*');
-  return res.status(upstreamRes.status).send(body);
+  return res.status(502).json({ error: 'Failed to reach Kuro Games API', detail: lastError });
 };

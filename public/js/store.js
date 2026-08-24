@@ -1,8 +1,9 @@
 // js/store.js
 // Browser storage + the logic that keeps only NEW pulls and computes pity.
 
-import { STORAGE_KEY, GENSHIN_BANNERS } from './config.js?v=20260824b';
-import { mergeWuwaHistory } from './wuwa-merge.js?v=20260824b';
+import { STORAGE_KEY, GENSHIN_BANNERS } from './config.js?v=20260824c';
+import { mergeGenshinHistory, sortGenshinHistory } from './genshin-merge.js?v=20260824c';
+import { mergeWuwaHistory } from './wuwa-merge.js?v=20260824c';
 
 function emptyData() {
   const genshin = {};
@@ -80,39 +81,10 @@ export function bigIntGt(a, b) {
 // vs an imported .xlsx, which has no ids), while genuine duplicates inside one 10-pull
 // are preserved. Pulls are kept in chronological order.
 export function addGenshinPulls(bannerKey, pulls) {
-  if (!pulls.length) return 0;
   const list = DATA.genshin[bannerKey] || (DATA.genshin[bannerKey] = []);
-
-  const have = new Map();
-  for (const p of list) {
-    const s = gsig(p);
-    have.set(s, (have.get(s) || 0) + 1);
-  }
-  const used = new Map();
-  let added = 0;
-  for (const p of pulls) {
-    const s = gsig(p);
-    const seen = used.get(s) || 0;
-    if (seen < (have.get(s) || 0)) {
-      used.set(s, seen + 1); // already stored — skip
-      continue;
-    }
-    list.push(p);
-    used.set(s, seen + 1);
-    added++;
-  }
-  list.sort(byChrono);
-  return added;
-}
-
-function gsig(p) {
-  return `${p.gachaType || ''}|${p.time}|${p.name}|${p.rarity}`;
-}
-
-// Chronological order: by time string, then by id (real ids sort newest last).
-function byChrono(a, b) {
-  if (a.time !== b.time) return a.time < b.time ? -1 : 1;
-  return bigIntGt(a.id, b.id) ? 1 : -1;
+  const merged = mergeGenshinHistory(list, pulls);
+  DATA.genshin[bannerKey] = merged.list;
+  return merged.added;
 }
 
 // WuWa pulls have no per-pull id, and timestamps can differ by timezone between tools
@@ -138,7 +110,7 @@ export function mergeWuwaPoolFresh(key, freshAsc) {
 
 // Genshin file import (.xlsx) is also a full snapshot per banner — replace it.
 export function replaceGenshinBanner(key, pulls) {
-  DATA.genshin[key] = pulls.slice().sort(byChrono);
+  DATA.genshin[key] = sortGenshinHistory(pulls);
   return pulls.length;
 }
 

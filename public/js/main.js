@@ -1,9 +1,9 @@
 // js/main.js
-import { GAMES, GENSHIN_BANNERS, wuwaBanner, wuwaBannersFor, iconCandidates, setManifest, LINK_GUIDES } from './config.js?v=20260824b';
-import { getData, clearAll, analyze, replaceAll } from './store.js?v=20260824b';
-import { importGenshin, importWuwa } from './import.js?v=20260824b';
-import { driveEnabled, driveSave, driveLoad } from './drive.js?v=20260824b';
-import { exportGenshinXlsx, exportWuwaJson, exportFullBackup, importFromFile } from './files.js?v=20260824b';
+import { GAMES, GENSHIN_BANNERS, wuwaBanner, wuwaBannersFor, iconCandidates, setManifest, LINK_GUIDES } from './config.js?v=20260824c';
+import { getData, clearAll, analyze, replaceAll } from './store.js?v=20260824c';
+import { importGenshin, importWuwa } from './import.js?v=20260824c';
+import { driveEnabled, driveSave, driveLoad } from './drive.js?v=20260824c';
+import { exportGenshinXlsx, exportWuwaJson, exportFullBackup, importFromFile } from './files.js?v=20260824c';
 
 let currentGame = 'genshin';
 const selectedBanner = { genshin: null, wuwa: null };

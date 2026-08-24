@@ -9,18 +9,14 @@ function stablePart(value) {
 function exactKey(pull) {
   return [
     stablePart(pull.time),
-    stablePart(pull.name),
-    Number(pull.rarity) || 0,
-    stablePart(pull.itemType),
+    contentKey(pull),
   ].join('|');
 }
 
 function contentKey(pull) {
-  return [
-    stablePart(pull.name),
-    Number(pull.rarity) || 0,
-    stablePart(pull.itemType),
-  ].join('|');
+  const resourceId = stablePart(pull.resourceId);
+  const identity = resourceId ? `id:${resourceId}` : `name:${stablePart(pull.name)}`;
+  return `${identity}|${Number(pull.rarity) || 0}`;
 }
 
 function suffixPrefixOverlap(stored, fresh, keyOf) {

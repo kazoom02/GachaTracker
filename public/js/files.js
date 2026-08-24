@@ -2,8 +2,8 @@
 // PC import/export. Genshin uses .xlsx (paimon.moe style, per-banner sheets);
 // Wuthering Waves uses .json. A dropped/selected file is routed by its type.
 
-import { GENSHIN_BANNERS } from './config.js?v=20260824b';
-import { getData, replaceGenshinBanner, replaceWuwaPool, replaceAll, save } from './store.js?v=20260824b';
+import { GENSHIN_BANNERS } from './config.js?v=20260824c';
+import { getData, replaceGenshinBanner, replaceWuwaPool, replaceAll, save } from './store.js?v=20260824c';
 import {
   detectWuwaJsonSource,
   groupWuwaJson,
@@ -11,7 +11,7 @@ import {
   normalizePaimonRows,
   normalizeWuwaFilePull,
   sortWuwaFilePulls,
-} from './file-formats.js?v=20260824b';
+} from './file-formats.js?v=20260824c';
 
 const SHEET_NAMES = {
   character: 'Character Event',

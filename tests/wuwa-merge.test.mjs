@@ -4,7 +4,7 @@ import { readFile } from 'node:fs/promises';
 const source = await readFile(new URL('../public/js/wuwa-merge.js', import.meta.url), 'utf8');
 const { mergeWuwaHistory } = await import(`data:text/javascript,${encodeURIComponent(source)}`);
 
-const pull = (name, time, rarity = 3, itemType = 'Weapon') => ({ name, time, rarity, itemType });
+const pull = (name, time, rarity = 3, itemType = 'Weapon', resourceId = '') => ({ name, time, rarity, itemType, resourceId });
 
 {
   const stored = [pull('A', '01'), pull('B', '02'), pull('C', '03')];
@@ -42,6 +42,24 @@ const pull = (name, time, rarity = 3, itemType = 'Weapon') => ({ name, time, rar
   assert.equal(first.added, 1);
   assert.equal(second.added, 0);
   assert.equal(second.list.length, 2);
+}
+
+{
+  // File inference and a localized live label may disagree on itemType. The stable
+  // resource id still identifies the overlap, preventing a full-history duplicate.
+  const stored = [
+    pull('Sword of Voyager', '2026-01-01 01:00:00', 3, 'Weapon', '21020043'),
+    pull('Lucilla', '2026-01-01 01:00:01', 5, 'Resonator', '1109'),
+  ];
+  const fresh = [
+    pull('Sword of Voyager', '2026-01-01 09:00:00', 3, 'Arma', '21020043'),
+    pull('Lucilla', '2026-01-01 09:00:01', 5, 'Ressonador', '1109'),
+    pull('Broadblade of Night', '2026-01-01 09:00:02', 3, 'Arma', '21010015'),
+  ];
+  const result = mergeWuwaHistory(stored, fresh);
+  assert.equal(result.added, 1);
+  assert.equal(result.strategy, 'content-overlap');
+  assert.deepEqual(result.list.map((p) => p.name), ['Sword of Voyager', 'Lucilla', 'Broadblade of Night']);
 }
 
 console.log('WuWa merge tests passed');

@@ -2,8 +2,17 @@
 // PC import/export. Genshin uses .xlsx (paimon.moe style, per-banner sheets);
 // Wuthering Waves uses .json. A dropped/selected file is routed by its type.
 
-import { GENSHIN_BANNERS } from './config.js?v=20260824c';
-import { getData, replaceGenshinBanner, replaceWuwaPool, replaceAll, save } from './store.js?v=20260824c';
+import { GENSHIN_BANNERS } from './config.js?v=20260824d';
+import {
+  exportProfilesBackup,
+  getActiveProfile,
+  getData,
+  replaceGenshinBanner,
+  replaceProfilesBackup,
+  replaceWuwaPool,
+  replaceAll,
+  save,
+} from './store.js?v=20260824d';
 import {
   detectWuwaJsonSource,
   groupWuwaJson,
@@ -11,7 +20,7 @@ import {
   normalizePaimonRows,
   normalizeWuwaFilePull,
   sortWuwaFilePulls,
-} from './file-formats.js?v=20260824c';
+} from './file-formats.js?v=20260824d';
 
 const SHEET_NAMES = {
   character: 'Character Event',
@@ -23,6 +32,7 @@ const SHEET_NAMES = {
 
 const today = () => new Date().toISOString().slice(0, 10);
 const byTime = (a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0);
+const profileSlug = () => getActiveProfile().name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'profile';
 
 function download(text, filename, mime) {
   const blob = new Blob([text], { type: mime });
@@ -55,7 +65,7 @@ export function exportGenshinXlsx() {
     total += pulls.length;
   }
   if (!total) throw new Error('No Genshin pulls to export yet.');
-  window.XLSX.writeFile(wb, `genshin-wishes-${today()}.xlsx`);
+  window.XLSX.writeFile(wb, `${profileSlug()}-genshin-wishes-${today()}.xlsx`);
   return total;
 }
 
@@ -72,7 +82,7 @@ export function exportWuwaJson() {
   if (!total) throw new Error('No Wuthering Waves pulls to export yet.');
   download(
     JSON.stringify({ type: 'gacha-tracker-wuwa', exportedAt: new Date().toISOString(), banners }, null, 2),
-    `wuwa-convenes-${today()}.json`,
+    `${profileSlug()}-wuwa-convenes-${today()}.json`,
     'application/json'
   );
   return total;
@@ -80,8 +90,8 @@ export function exportWuwaJson() {
 
 export function exportFullBackup() {
   download(
-    JSON.stringify({ ...getData(), type: 'gacha-tracker-backup' }, null, 2),
-    `gacha-tracker-backup-${today()}.json`,
+    JSON.stringify(exportProfilesBackup(), null, 2),
+    `convene-all-profiles-${today()}.json`,
     'application/json'
   );
 }
@@ -132,6 +142,11 @@ async function importJson(file) {
     obj = JSON.parse(text);
   } catch {
     throw new Error('That file is not valid JSON.');
+  }
+
+  if (obj.type === 'gacha-tracker-profiles-backup' && obj.profiles) {
+    const profiles = replaceProfilesBackup(obj);
+    return { game: 'profiles backup', restored: true, restoredProfiles: profiles };
   }
 
   // Full backup (both games) → restore everything.

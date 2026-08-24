@@ -1,9 +1,22 @@
 // js/main.js
-import { GAMES, GENSHIN_BANNERS, wuwaBanner, wuwaBannersFor, iconCandidates, setManifest, LINK_GUIDES } from './config.js?v=20260824c';
-import { getData, clearAll, analyze, replaceAll } from './store.js?v=20260824c';
-import { importGenshin, importWuwa } from './import.js?v=20260824c';
-import { driveEnabled, driveSave, driveLoad } from './drive.js?v=20260824c';
-import { exportGenshinXlsx, exportWuwaJson, exportFullBackup, importFromFile } from './files.js?v=20260824c';
+import { GAMES, GENSHIN_BANNERS, wuwaBanner, wuwaBannersFor, iconCandidates, setManifest, LINK_GUIDES } from './config.js?v=20260824d';
+import {
+  analyze,
+  clearAll,
+  createProfile,
+  deleteProfile,
+  exportProfilesBackup,
+  getActiveProfile,
+  getData,
+  getProfiles,
+  renameProfile,
+  replaceAll,
+  replaceProfilesBackup,
+  switchProfile,
+} from './store.js?v=20260824d';
+import { importGenshin, importWuwa } from './import.js?v=20260824d';
+import { driveEnabled, driveSave, driveLoad } from './drive.js?v=20260824d';
+import { exportGenshinXlsx, exportWuwaJson, exportFullBackup, importFromFile } from './files.js?v=20260824d';
 
 let currentGame = 'genshin';
 const selectedBanner = { genshin: null, wuwa: null };
@@ -17,6 +30,130 @@ const viewState = {
   historySearch: '',
   historyRarityFilter: 0,
 };
+let profileEditorMode = 'create';
+let profileActionsLocked = false;
+
+function profileInitials(name) {
+  const words = String(name || '').trim().split(/\s+/).filter(Boolean);
+  if (!words.length) return 'P';
+  return (words.length > 1 ? words[0][0] + words[1][0] : words[0].slice(0, 2)).toUpperCase();
+}
+
+function pullLabel(count) {
+  return `${Number(count || 0).toLocaleString()} ${count === 1 ? 'pull' : 'pulls'}`;
+}
+
+function renderProfiles() {
+  const active = getActiveProfile();
+  const profiles = getProfiles();
+  const initials = profileInitials(active.name);
+  $('#profile-name').textContent = active.name;
+  $('#profile-avatar').textContent = initials;
+  $('#panel-profile-name').textContent = active.name;
+  $('#panel-profile-avatar').textContent = initials;
+  $('#panel-profile-count').textContent = pullLabel(active.pullCount);
+  $('#profile-btn').disabled = profileActionsLocked;
+  $('#profile-new').disabled = profileActionsLocked;
+  $('#profile-create').disabled = profileActionsLocked;
+  $('#profile-rename').disabled = profileActionsLocked;
+  $('#profile-delete').disabled = profileActionsLocked || profiles.length <= 1;
+
+  $('#profile-list').innerHTML = profiles.map((profile) => `
+    <button class="profile-row ${profile.id === active.id ? 'profile-row--on' : ''}" type="button" role="menuitem" data-profile-id="${esc(profile.id)}">
+      <span class="profile-avatar" aria-hidden="true">${esc(profileInitials(profile.name))}</span>
+      <span class="profile-row__copy"><b>${esc(profile.name)}</b><small>${esc(pullLabel(profile.pullCount))}</small></span>
+      <span class="profile-row__check" aria-hidden="true">✓</span>
+    </button>`).join('');
+
+  $('#profile-list').querySelectorAll('[data-profile-id]').forEach((button) => {
+    button.addEventListener('click', () => selectProfile(button.dataset.profileId));
+  });
+}
+
+function lockProfileActions(locked) {
+  profileActionsLocked = locked;
+  if (locked) closeProfileMenu();
+  renderProfiles();
+}
+
+function resetProfileView() {
+  selectedBanner.genshin = null;
+  selectedBanner.wuwa = null;
+  viewState.historyPage = 1;
+  viewState.historySearch = '';
+  viewState.historyRarityFilter = 0;
+  $('#url-input').value = '';
+}
+
+function closeProfileMenu() {
+  $('#profile-menu').classList.remove('profile-menu--on');
+  $('#profile-btn').setAttribute('aria-expanded', 'false');
+}
+
+function toggleProfileMenu() {
+  const open = !$('#profile-menu').classList.contains('profile-menu--on');
+  $('#profile-menu').classList.toggle('profile-menu--on', open);
+  $('#profile-btn').setAttribute('aria-expanded', String(open));
+}
+
+function selectProfile(id) {
+  const profile = switchProfile(id);
+  resetProfileView();
+  renderProfiles();
+  renderBanners();
+  closeProfileMenu();
+  setStatus(`Switched to ${profile.name}.`, 'ok');
+}
+
+function openProfileEditor(mode) {
+  profileEditorMode = mode;
+  const editing = mode === 'rename';
+  const active = getActiveProfile();
+  $('#profile-editor-title').textContent = editing ? 'Rename profile' : 'New profile';
+  $('#profile-editor-lead').textContent = editing
+    ? 'Change the label shown in your profile switcher.'
+    : 'Create a separate space for another account’s pulls.';
+  $('#profile-editor-save').textContent = editing ? 'Save name' : 'Create profile';
+  $('#profile-name-input').value = editing ? active.name : '';
+  $('#profile-editor').classList.add('panel--on');
+  closeProfileMenu();
+  requestAnimationFrame(() => $('#profile-name-input').focus());
+}
+
+function closeProfileEditor() {
+  $('#profile-editor').classList.remove('panel--on');
+}
+
+function saveProfileEditor(event) {
+  event.preventDefault();
+  const name = $('#profile-name-input').value.trim();
+  if (!name) return;
+
+  if (profileEditorMode === 'rename') {
+    const profile = renameProfile(getActiveProfile().id, name);
+    renderProfiles();
+    setPanelMsg(`Renamed profile to ${profile.name}.`, 'ok');
+  } else {
+    const profile = createProfile(name);
+    resetProfileView();
+    renderProfiles();
+    renderBanners();
+    setStatus(`${profile.name} is ready for imports.`, 'ok');
+    setPanelMsg(`Created ${profile.name}.`, 'ok');
+  }
+  closeProfileEditor();
+}
+
+function deleteCurrentProfile() {
+  const active = getActiveProfile();
+  if (!confirm(`Delete “${active.name}” and all ${pullLabel(active.pullCount)} stored in it? This cannot be undone.`)) return;
+  const next = deleteProfile(active.id);
+  resetProfileView();
+  renderProfiles();
+  renderBanners();
+  closeProfileMenu();
+  setPanelMsg(`Deleted ${active.name}. Switched to ${next.name}.`, 'ok');
+}
 
 function setGame(game) {
   currentGame = game;
@@ -410,10 +547,12 @@ async function runImport() {
   if (!url) return setStatus('Paste your link first.', 'warn');
 
   btn.disabled = true;
+  lockProfileActions(true);
   setStatus('Starting...', 'busy');
   try {
     const fn = currentGame === 'genshin' ? importGenshin : importWuwa;
     const { totalNew, perBanner } = await fn(url, (msg) => setStatus(msg, 'busy'));
+    renderProfiles();
     renderBanners();
     if (totalNew === 0) {
       setStatus('Up to date - no new pulls found.', 'ok');
@@ -425,10 +564,12 @@ async function runImport() {
   } catch (err) {
     // WuWa commits each successful pool as it arrives, so show partial progress even
     // if a later pool request fails.
+    renderProfiles();
     renderBanners();
     setStatus(err.message || String(err), 'err');
   } finally {
     btn.disabled = false;
+    lockProfileActions(false);
   }
 }
 
@@ -438,7 +579,7 @@ function setStatus(msg, kind = '') {
   s.className = 'status' + (kind ? ' status--' + kind : '');
 }
 
-function openPanel() { $('#panel').classList.add('panel--on'); }
+function openPanel() { renderProfiles(); $('#panel').classList.add('panel--on'); }
 function closePanel() { $('#panel').classList.remove('panel--on'); }
 
 function doExport(fn, okMsg) {
@@ -452,10 +593,15 @@ function doExport(fn, okMsg) {
 
 async function handleFile(file) {
   setPanelMsg(`Reading ${file.name}...`, 'busy');
+  lockProfileActions(true);
   try {
     const res = await importFromFile(file);
+    if (res.restoredProfiles) resetProfileView();
+    renderProfiles();
     renderBanners();
-    if (res.restored) {
+    if (res.restoredProfiles) {
+      setPanelMsg(`Restored ${res.restoredProfiles} ${res.restoredProfiles === 1 ? 'profile' : 'profiles'}.`, 'ok');
+    } else if (res.restored) {
       setPanelMsg('Full backup restored.', 'ok');
     } else if (res.added === 0) {
       setPanelMsg(`${res.source || res.game}: no pulls found in that file.`, 'warn');
@@ -464,14 +610,16 @@ async function handleFile(file) {
     }
   } catch (e) {
     setPanelMsg(e.message, 'err');
+  } finally {
+    lockProfileActions(false);
   }
 }
 
 async function driveBackup() {
   setPanelMsg('Connecting to Google Drive...', 'busy');
   try {
-    const res = await driveSave(getData());
-    setPanelMsg(`Backed up to Google Drive (${res}).`, 'ok');
+    const res = await driveSave(exportProfilesBackup());
+    setPanelMsg(`Backed up every profile to Google Drive (${res}).`, 'ok');
   } catch (e) {
     setPanelMsg('Drive error: ' + e.message, 'err');
   }
@@ -482,9 +630,17 @@ async function driveRestore() {
   try {
     const obj = await driveLoad();
     if (!obj) return setPanelMsg('No backup found in your Drive yet.', 'warn');
-    replaceAll(obj);
+    let message = 'Restored the current profile from Google Drive.';
+    if (obj.type === 'gacha-tracker-profiles-backup' && obj.profiles) {
+      const count = replaceProfilesBackup(obj);
+      message = `Restored ${count} ${count === 1 ? 'profile' : 'profiles'} from Google Drive.`;
+    } else {
+      replaceAll(obj);
+    }
+    resetProfileView();
+    renderProfiles();
     renderBanners();
-    setPanelMsg('Restored from Google Drive. This replaced your stored data.', 'ok');
+    setPanelMsg(message, 'ok');
   } catch (e) {
     setPanelMsg('Drive error: ' + e.message, 'err');
   }
@@ -573,6 +729,19 @@ function init() {
   $('#help-close').addEventListener('click', closeHelp);
   $('#help-panel').addEventListener('click', (e) => { if (e.target.id === 'help-panel') closeHelp(); });
 
+  $('#profile-btn').addEventListener('click', (e) => { e.stopPropagation(); toggleProfileMenu(); });
+  $('#profile-menu').addEventListener('click', (e) => e.stopPropagation());
+  $('#profile-new').addEventListener('click', () => openProfileEditor('create'));
+  $('#profile-create').addEventListener('click', () => openProfileEditor('create'));
+  $('#profile-rename').addEventListener('click', () => openProfileEditor('rename'));
+  $('#profile-delete').addEventListener('click', deleteCurrentProfile);
+  $('#profile-form').addEventListener('submit', saveProfileEditor);
+  $('#profile-editor-close').addEventListener('click', closeProfileEditor);
+  $('#profile-editor-cancel').addEventListener('click', closeProfileEditor);
+  $('#profile-editor').addEventListener('click', (e) => { if (e.target.id === 'profile-editor') closeProfileEditor(); });
+  document.addEventListener('click', closeProfileMenu);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeProfileMenu(); closeProfileEditor(); } });
+
   $('#data-btn').addEventListener('click', openPanel);
   $('#panel-close').addEventListener('click', closePanel);
   $('#panel').addEventListener('click', (e) => { if (e.target.id === 'panel') closePanel(); });
@@ -601,13 +770,16 @@ function init() {
   $('#drive-load').addEventListener('click', driveRestore);
 
   $('#clear-data').addEventListener('click', () => {
-    if (confirm('Delete all stored pulls from this browser? Export a backup first if unsure.')) {
+    const profile = getActiveProfile();
+    if (confirm(`Delete all pulls stored in “${profile.name}”? Other profiles will not be affected.`)) {
       clearAll();
+      renderProfiles();
       renderBanners();
-      setPanelMsg('All stored pulls cleared.', 'ok');
+      setPanelMsg(`Cleared all pulls from ${profile.name}.`, 'ok');
     }
   });
 
+  renderProfiles();
   loadIconSources().finally(() => setGame('genshin'));
 }
 

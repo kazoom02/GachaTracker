@@ -94,11 +94,18 @@ red = late (≥75).
 Open **Data** to manage your saved pulls. You can **drag a file anywhere onto the page**
 to import it, or use the drop zone / file picker in the panel.
 
+### Profiles
+
+Use the profile switcher in the header for separate main and alt account histories. Existing
+single-account browser data is migrated automatically into **My Account**. Link imports, file
+imports, game exports, and clearing pulls affect only the selected profile. The **Everything**
+JSON and Google Drive backup include every profile.
+
 | File | Game | Notes |
 | --- | --- | --- |
 | `.xlsx` | Genshin Impact | Reads **paimon.moe v3** workbooks directly, including the `⭐` rarity and `#Roll` ordering columns, plus Convene exports. |
 | `.json` | Wuthering Waves | Reads **WuWa Tracker** exports directly (the `pulls` array), including ten-pull group ordering, plus Convene exports. |
-| `.json` (full backup) | Both | One file holding everything; restoring it replaces all stored data. |
+| `.json` (full backup) | Both | One file holding every profile and both games; restoring it replaces all profiles. |
 
 - **Exports:** *Export Genshin* → `.xlsx`, *Export Wuthering Waves* → `.json`, *Everything* → a full backup `.json`.
 - **A file is a full snapshot.** Importing one replaces the stored data for the banners/pools it

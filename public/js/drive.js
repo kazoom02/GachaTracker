@@ -2,7 +2,7 @@
 // Optional backup to a visible Google Drive file.
 // Fully works once GOOGLE_CLIENT_ID is set in config.js; otherwise stays disabled.
 
-import { GOOGLE_CLIENT_ID, DRIVE_FILENAME } from './config.js?v=20260824c';
+import { GOOGLE_CLIENT_ID, DRIVE_FILENAME } from './config.js?v=20260824d';
 
 const SCOPE = 'https://www.googleapis.com/auth/drive.file';
 let tokenClient = null;

@@ -1,7 +1,7 @@
 // js/config.js
 // Central configuration: banner definitions for both games + optional Google Drive setup.
 
-import { md5 } from './md5.js?v=20260824c';
+import { md5 } from './md5.js?v=20260824d';
 
 // ── Google Drive (optional) ────────────────────────────────────────────────
 // Leave blank to disable Drive sync (PC export/import and browser storage still work).

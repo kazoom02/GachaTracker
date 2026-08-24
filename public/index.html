@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20260824" />
+  <link rel="stylesheet" href="styles.css?v=20260824b" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 </head>
 <body data-game="genshin">
@@ -70,13 +70,13 @@
         <button id="panel-close" class="btn btn--ghost" aria-label="Close">✕</button>
       </header>
 
-      <p class="panel__lead">Pulls are saved in this browser automatically. Keep a copy somewhere safe:</p>
+      <p class="panel__lead">Import an existing tracker export or download a fresh backup. Pulls are saved in this browser automatically.</p>
 
       <div class="dropzone" id="dropzone">
         <div class="dropzone__inner">
           <span class="dropzone__icon">⤵</span>
           <p><b>Drop a file here</b> or <button id="pick-file" class="linklike">choose one</button></p>
-          <p class="muted">Genshin <code>.xlsx</code> · Wuthering Waves <code>.json</code> · or a full backup <code>.json</code></p>
+          <p class="muted">paimon.moe <code>.xlsx</code> · WuWa Tracker <code>.json</code> · or a Convene backup <code>.json</code></p>
         </div>
         <input id="file-input" type="file" accept=".xlsx,.xls,.json,application/json" hidden />
       </div>
@@ -134,10 +134,10 @@
     <div class="drop-overlay__card">
       <span class="drop-overlay__icon">⤵</span>
       <p>Drop to import</p>
-      <p class="muted">Genshin .xlsx · Wuthering Waves .json · backup .json</p>
+      <p class="muted">paimon.moe .xlsx · WuWa Tracker .json · Convene backup .json</p>
     </div>
   </div>
 
-  <script type="module" src="js/main.js?v=20260824"></script>
+  <script type="module" src="js/main.js?v=20260824b"></script>
 </body>
 </html>

@@ -1,8 +1,8 @@
 // js/store.js
 // Browser storage + the logic that keeps only NEW pulls and computes pity.
 
-import { STORAGE_KEY, GENSHIN_BANNERS } from './config.js?v=20260824';
-import { mergeWuwaHistory } from './wuwa-merge.js?v=20260824';
+import { STORAGE_KEY, GENSHIN_BANNERS } from './config.js?v=20260824b';
+import { mergeWuwaHistory } from './wuwa-merge.js?v=20260824b';
 
 function emptyData() {
   const genshin = {};

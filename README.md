@@ -96,8 +96,8 @@ to import it, or use the drop zone / file picker in the panel.
 
 | File | Game | Notes |
 | --- | --- | --- |
-| `.xlsx` | Genshin Impact | Per-banner sheets (paimon.moe-style), columns `Type, Name, Time, Rarity, Pity`. |
-| `.json` | Wuthering Waves | Reads **wuwatracker** exports directly (the `pulls` array), plus our own format. |
+| `.xlsx` | Genshin Impact | Reads **paimon.moe v3** workbooks directly, including the `⭐` rarity and `#Roll` ordering columns, plus Convene exports. |
+| `.json` | Wuthering Waves | Reads **WuWa Tracker** exports directly (the `pulls` array), including ten-pull group ordering, plus Convene exports. |
 | `.json` (full backup) | Both | One file holding everything; restoring it replaces all stored data. |
 
 - **Exports:** *Export Genshin* → `.xlsx`, *Export Wuthering Waves* → `.json`, *Everything* → a full backup `.json`.
@@ -107,10 +107,9 @@ to import it, or use the drop zone / file picker in the panel.
 - **Wuthering Waves pools:** Kuro numbers convene pools `1`–`4` for the four main banners and
   `10` / `11` for the beginner & selector banners. Pulls are keyed by their real pool number, so
   every banner shows up and live + file imports always land in the same bucket.
-- **Importing a real paimon.moe export:** supported. Our own `.xlsx` stores an explicit `Rarity`
-  column so it round-trips exactly. A foreign paimon file has no rarity column, so 5★ are
-  recovered from the `Pity` column (which resets after each 5★); 4★ may not be distinguished in
-  that case. Re-export from this tool afterward for clean data.
+- **Importing a real paimon.moe export:** supported. Current exports use `⭐` for rarity and
+  `#Roll` for stable ordering; older files with a `Rarity` column also work. If neither rarity
+  column exists, 5★ boundaries are recovered from pity resets as a compatibility fallback.
 
 ## Character & weapon portraits
 

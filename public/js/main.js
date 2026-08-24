@@ -1,9 +1,9 @@
 // js/main.js
-import { GAMES, GENSHIN_BANNERS, wuwaBanner, wuwaBannersFor, iconCandidates, setManifest, LINK_GUIDES } from './config.js?v=20260824';
-import { getData, clearAll, analyze, replaceAll } from './store.js?v=20260824';
-import { importGenshin, importWuwa } from './import.js?v=20260824';
-import { driveEnabled, driveSave, driveLoad } from './drive.js?v=20260824';
-import { exportGenshinXlsx, exportWuwaJson, exportFullBackup, importFromFile } from './files.js?v=20260824';
+import { GAMES, GENSHIN_BANNERS, wuwaBanner, wuwaBannersFor, iconCandidates, setManifest, LINK_GUIDES } from './config.js?v=20260824b';
+import { getData, clearAll, analyze, replaceAll } from './store.js?v=20260824b';
+import { importGenshin, importWuwa } from './import.js?v=20260824b';
+import { driveEnabled, driveSave, driveLoad } from './drive.js?v=20260824b';
+import { exportGenshinXlsx, exportWuwaJson, exportFullBackup, importFromFile } from './files.js?v=20260824b';
 
 let currentGame = 'genshin';
 const selectedBanner = { genshin: null, wuwa: null };
@@ -458,9 +458,9 @@ async function handleFile(file) {
     if (res.restored) {
       setPanelMsg('Full backup restored.', 'ok');
     } else if (res.added === 0) {
-      setPanelMsg(`${res.game}: no pulls found in that file.`, 'warn');
+      setPanelMsg(`${res.source || res.game}: no pulls found in that file.`, 'warn');
     } else {
-      setPanelMsg(`${res.game}: loaded ${res.added} ${res.added === 1 ? 'pull' : 'pulls'} from the file.`, 'ok');
+      setPanelMsg(`${res.source || res.game}: loaded ${res.added} ${res.added === 1 ? 'pull' : 'pulls'} from the file.`, 'ok');
     }
   } catch (e) {
     setPanelMsg(e.message, 'err');

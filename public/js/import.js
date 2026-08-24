@@ -1,8 +1,8 @@
 // js/import.js
 // Orchestrates importing NEW pulls only, by calling the /api forwarders.
 
-import { GENSHIN_BANNERS, WUWA_QUERY_TYPES, wuwaBanner } from './config.js?v=20260824';
-import { addGenshinPulls, mergeWuwaPoolFresh, genshinKnownMaxId, bigIntGt, save } from './store.js?v=20260824';
+import { GENSHIN_BANNERS, WUWA_QUERY_TYPES, wuwaBanner } from './config.js?v=20260824b';
+import { addGenshinPulls, mergeWuwaPoolFresh, genshinKnownMaxId, bigIntGt, save } from './store.js?v=20260824b';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

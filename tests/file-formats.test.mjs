@@ -35,6 +35,8 @@ const formats = await import(`data:text/javascript,${encodeURIComponent(source)}
   assert.equal(formats.matchGenshinBanner("Beginners' Wish"), 'novice');
   assert.deepEqual(pulls.map((pull) => pull.name), ['Debate Club', 'Ferrous Shadow', 'Xiangling']);
   assert.deepEqual(pulls.map((pull) => pull.rarity), [3, 3, 4]);
+  assert.deepEqual(pulls.map((pull) => pull.sourceOrder), [1, 2, 4]);
+  assert.deepEqual(pulls.map((pull) => pull.sourcePity), [1, 1, 4]);
   assert.ok(pulls.every((pull) => pull.gachaType === '301'));
 }
 

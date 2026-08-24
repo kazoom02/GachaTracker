@@ -1,9 +1,9 @@
 // js/store.js
 // Browser storage + the logic that keeps only NEW pulls and computes pity.
 
-import { STORAGE_KEY, GENSHIN_BANNERS } from './config.js?v=20260824d';
-import { mergeGenshinHistory, sortGenshinHistory } from './genshin-merge.js?v=20260824d';
-import { mergeWuwaHistory } from './wuwa-merge.js?v=20260824d';
+import { STORAGE_KEY, GENSHIN_BANNERS } from './config.js?v=20260824f';
+import { mergeGenshinHistory, sortGenshinHistory } from './genshin-merge.js?v=20260824f';
+import { mergeWuwaHistory } from './wuwa-merge.js?v=20260824f';
 
 const PROFILE_STATE_VERSION = 2;
 const PROFILE_BACKUP_TYPE = 'gacha-tracker-profiles-backup';
@@ -271,11 +271,13 @@ export function analyze(pulls) {
     since5++;
     since4++;
     if (p.rarity === 5) {
-      five.push({ name: p.name, pity: since5, time: p.time, itemType: p.itemType });
+      const sourcePity = Number(p.sourcePity);
+      five.push({ name: p.name, pity: sourcePity > 0 ? sourcePity : since5, time: p.time, itemType: p.itemType });
       since5 = 0;
       since4 = 0;
     } else if (p.rarity === 4) {
-      four.push({ name: p.name, pity: since4, time: p.time, itemType: p.itemType });
+      const sourcePity = Number(p.sourcePity);
+      four.push({ name: p.name, pity: sourcePity > 0 ? sourcePity : since4, time: p.time, itemType: p.itemType });
       since4 = 0;
     }
   }

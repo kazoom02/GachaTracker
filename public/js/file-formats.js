@@ -96,6 +96,8 @@ export function normalizePaimonRows(rows, bannerKey) {
     itemType: record.itemType,
     time: record.time,
     gachaType,
+    sourceOrder: record.order,
+    sourcePity: record.pity,
   }));
 }
 

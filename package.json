@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vercel dev",
     "deploy": "vercel --prod",
-    "test": "node tests/wuwa-merge.test.mjs && node tests/wuwa-api.test.cjs && node tests/file-formats.test.mjs && node tests/genshin-merge.test.mjs && node tests/profile-store.test.mjs"
+    "test": "node tests/wuwa-merge.test.mjs && node tests/wuwa-api.test.cjs && node tests/file-formats.test.mjs && node tests/genshin-merge.test.mjs && node tests/profile-store.test.mjs && node tests/highlight-view.test.mjs"
   },
   "engines": {
     "node": ">=18"

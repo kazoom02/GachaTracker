@@ -72,4 +72,16 @@ const livePull = (id, name, time, rarity = 3, gachaType = '400') => ({
   assert.equal(result.list.length, 3);
 }
 
+{
+  const sameTime = '2022-10-14 19:17:46';
+  const stored = [
+    { ...filePull('Albedo', sameTime, 5), sourceOrder: 24, sourcePity: 24 },
+    { ...filePull('Bloodtainted Greatsword', sameTime), sourceOrder: 23, sourcePity: 1 },
+    { ...filePull('Emerald Orb', sameTime), sourceOrder: 25, sourcePity: 1 },
+  ];
+  const result = mergeGenshinHistory(stored, []);
+  assert.deepEqual(result.list.map((pull) => pull.sourceOrder), [23, 24, 25]);
+  assert.equal(result.list[1].name, 'Albedo');
+}
+
 console.log('Genshin cross-source merge tests passed');

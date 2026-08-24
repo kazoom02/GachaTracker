@@ -18,15 +18,15 @@ globalThis.localStorage = {
 let source = await readFile(new URL('../public/js/store.js', import.meta.url), 'utf8');
 source = source
   .replace(
-    "import { STORAGE_KEY, GENSHIN_BANNERS } from './config.js?v=20260824d';",
+    "import { STORAGE_KEY, GENSHIN_BANNERS } from './config.js?v=20260824f';",
     "const STORAGE_KEY = 'test-profile-storage'; const GENSHIN_BANNERS = [{ key: 'character' }, { key: 'weapon' }, { key: 'standard' }];"
   )
   .replace(
-    "import { mergeGenshinHistory, sortGenshinHistory } from './genshin-merge.js?v=20260824d';",
+    "import { mergeGenshinHistory, sortGenshinHistory } from './genshin-merge.js?v=20260824f';",
     "const mergeGenshinHistory = (stored, incoming) => ({ list: stored.concat(incoming), added: incoming.length }); const sortGenshinHistory = (pulls) => pulls.slice();"
   )
   .replace(
-    "import { mergeWuwaHistory } from './wuwa-merge.js?v=20260824d';",
+    "import { mergeWuwaHistory } from './wuwa-merge.js?v=20260824f';",
     "const mergeWuwaHistory = (stored, incoming) => ({ list: stored.concat(incoming), added: incoming.length });"
   );
 

@@ -33,6 +33,11 @@ function byChrono(a, b) {
   const leftTime = stablePart(a.time);
   const rightTime = stablePart(b.time);
   if (leftTime !== rightTime) return leftTime < rightTime ? -1 : 1;
+  const leftOrder = Number(a.sourceOrder);
+  const rightOrder = Number(b.sourceOrder);
+  if (Number.isFinite(leftOrder) && Number.isFinite(rightOrder) && leftOrder !== rightOrder) {
+    return leftOrder - rightOrder;
+  }
   return numericIdCompare(a.id, b.id);
 }
 

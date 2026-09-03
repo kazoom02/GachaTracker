@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260903a" />
-  <link rel="stylesheet" href="builds.css?v=20260903b" />
+  <link rel="stylesheet" href="builds.css?v=20260903c" />
 </head>
 <body data-game="genshin" class="builds-page">
   <div class="stars" aria-hidden="true"></div>
@@ -28,6 +28,39 @@
   </header>
 
   <main class="build-main">
+    <section id="character-roster-view" class="character-roster-home">
+      <header class="roster-home__head">
+        <div>
+          <p class="eyebrow"><span></span> Genshin Impact · character builds</p>
+          <h2>Choose a character</h2>
+          <p>Characters confirmed on the selected profile are shown normally. Characters not confirmed by imported history or roster corrections are greyed out with a lock — their guides are still viewable.</p>
+        </div>
+        <div class="roster-home__summary" aria-label="Roster summary">
+          <span><b id="roster-owned-count">0</b> confirmed</span>
+          <span><b id="roster-locked-count">0</b> locked</span>
+        </div>
+      </header>
+
+      <div class="roster-home__tools">
+        <label class="roster-search">
+          <span>Find character</span>
+          <input id="roster-search" type="search" autocomplete="off" placeholder="Search all Genshin characters…" />
+        </label>
+        <div id="roster-filters" class="roster-filters" aria-label="Roster filter">
+          <button class="roster-filter roster-filter--on" type="button" data-roster-filter="all">All</button>
+          <button class="roster-filter" type="button" data-roster-filter="owned">Owned</button>
+          <button class="roster-filter" type="button" data-roster-filter="locked">Locked</button>
+        </div>
+      </div>
+
+      <div id="character-grid" class="character-grid" aria-live="polite"></div>
+      <p class="roster-home__note"><span aria-hidden="true">🔒</span> A lock means Convene cannot confirm that character on this profile. Imported wish history may be incomplete, so locked does not automatically mean you do not own them.</p>
+    </section>
+
+    <div id="character-detail-view" hidden>
+      <div class="detail-toolbar">
+        <button id="back-to-roster" class="btn btn--ghost" type="button"><span aria-hidden="true">←</span> All characters</button>
+      </div>
     <section class="build-hero">
       <div class="build-portrait" id="character-portrait"><span>?</span></div>
       <div class="build-hero__copy">
@@ -105,6 +138,7 @@
       <div><p class="eyebrow"><span></span> Method</p><h2>Assumptions & limitations</h2><ul id="assumptions"></ul></div>
       <div><p class="eyebrow"><span></span> Evidence</p><h2>Sources used</h2><div id="sources" class="build-sources"></div></div>
     </section>
+    </div>
   </main>
 
   <footer class="foot build-foot">
@@ -113,6 +147,6 @@
     <p class="muted">Generic guide rankings do not receive invented DPS. “Unknown” ownership does not mean unowned.</p>
   </footer>
 
-  <script type="module" src="js/builds.js?v=20260903b"></script>
+  <script type="module" src="js/builds.js?v=20260903d"></script>
 </body>
 </html>

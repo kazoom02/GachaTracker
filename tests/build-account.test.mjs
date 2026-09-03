@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { analyzeGenshinOwnership, characterHistoryStatus, rankBuildableTeams, rankClosestTeams, teamHistoryStatus, weaponHistoryStatus } from '../public/js/build-account.js';
+import { analyzeGenshinOwnership, characterHistoryStatus, rankBuildableTeams, rankClosestTeams, suggestTeamSubstitutions, teamHistoryStatus, weaponHistoryStatus } from '../public/js/build-account.js';
 
 const data = {
   genshin: {
@@ -62,3 +62,80 @@ const withCorrection = rankBuildableTeams(optimizerTeams, ownership, { Sandrone:
 assert.equal(withCorrection[0].team.name, 'Top');
 const closest = rankClosestTeams(optimizerTeams, ownership, {}, 2);
 assert.equal(closest[0].team.name, 'Top');
+
+
+// Source-backed substitution tests.
+const substitutionOwnership = analyzeGenshinOwnership({
+  genshin: {
+    character: [
+      { name: 'Arlecchino', itemType: 'Character' },
+      { name: 'Bennett', itemType: 'Character' },
+      { name: 'Xilonen', itemType: 'Character' },
+      { name: 'Fischl', itemType: 'Character' },
+    ],
+  },
+});
+const substitutionTeams = [
+  {
+    rank: 1,
+    name: 'Yae version',
+    tier: 'SS',
+    members: [
+      { name: 'Arlecchino', role: 'Main DPS' },
+      { name: 'Yae Miko', role: 'Sub DPS' },
+      { name: 'Xilonen', role: 'Support' },
+      { name: 'Bennett', role: 'Healer / Support' },
+    ],
+  },
+  {
+    rank: 2,
+    name: 'Fischl swap',
+    tier: 'S',
+    members: [
+      { name: 'Arlecchino', role: 'Main DPS' },
+      { name: 'Fischl', role: 'Sub DPS' },
+      { name: 'Xilonen', role: 'Support' },
+      { name: 'Bennett', role: 'Healer / Support' },
+    ],
+  },
+  {
+    rank: 3,
+    name: 'Unknown swap',
+    tier: 'S',
+    members: [
+      { name: 'Arlecchino', role: 'Main DPS' },
+      { name: 'Yelan', role: 'Sub DPS' },
+      { name: 'Xilonen', role: 'Support' },
+      { name: 'Bennett', role: 'Healer / Support' },
+    ],
+  },
+];
+const substitutions = suggestTeamSubstitutions(
+  substitutionTeams[0],
+  substitutionTeams,
+  substitutionOwnership,
+  {},
+  'Arlecchino',
+  [],
+  3,
+);
+assert.equal(substitutions.length, 1);
+assert.equal(substitutions[0].member.name, 'Yae Miko');
+assert.equal(substitutions[0].candidates[0].name, 'Fischl');
+assert.equal(substitutions[0].candidates[0].status.state, 'verified');
+assert.ok(substitutions[0].candidates[0].evidence.includes('Direct guide swap'));
+
+// The focus character should never get a misleading replacement suggestion.
+const missingFocusOwnership = analyzeGenshinOwnership({ genshin: { character: [{ name: 'Bennett', itemType: 'Character' }] } });
+const focusSuggestions = suggestTeamSubstitutions(
+  substitutionTeams[0],
+  substitutionTeams,
+  missingFocusOwnership,
+  {},
+  'Arlecchino',
+);
+const focusEntry = focusSuggestions.find((entry) => entry.member.name === 'Arlecchino');
+assert.equal(focusEntry.coreCharacter, true);
+assert.deepEqual(focusEntry.candidates, []);
+
+console.log('Source-backed substitution tests passed');

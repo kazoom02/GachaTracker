@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+const js = fs.readFileSync(new URL('../public/js/builds.js', import.meta.url), 'utf8');
+const css = fs.readFileSync(new URL('../public/builds.css', import.meta.url), 'utf8');
+assert.match(js, /suggestTeamSubstitutions/);
+assert.match(js, /Suggested replacements/);
+assert.match(js, /BEST OWNED/);
+assert.match(css, /\.team-replacements\s*\{/);
+assert.match(css, /\.replacement-option--verified/);
+console.log('Build substitution UI tests passed');

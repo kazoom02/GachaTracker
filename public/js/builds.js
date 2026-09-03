@@ -2,7 +2,7 @@ import { iconCandidates } from './config.js?v=20260903b';
 import { getActiveProfile, getData, getProfiles, switchProfile } from './store.js?v=20260903b';
 import { findBuildCharacter } from './build-data.js?v=20260903b';
 import { GENSHIN_BUILD_CATALOG, canonicalCharacterName, getCatalogCharacter, guideQuery } from './build-catalog.js?v=20260903b';
-import { analyzeGenshinOwnership, characterHistoryStatus, rankBuildableTeams, rankClosestTeams, teamHistoryStatus, weaponHistoryStatus } from './build-account.js?v=20260903b';
+import { analyzeGenshinOwnership, characterHistoryStatus, rankBuildableTeams, rankClosestTeams, suggestTeamSubstitutions, teamHistoryStatus, weaponHistoryStatus } from './build-account.js?v=20260903d';
 import { clearRosterOverrides, getRosterOverrides, setRosterOverride } from './build-roster.js?v=20260903b';
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -12,13 +12,16 @@ const LIVE_CACHE_KEY = 'convene-build-guide-cache-v1';
 const LIVE_FRESH_MS = 12 * 60 * 60 * 1000;
 const LIVE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
 
-let catalogEntry = getCatalogCharacter(new URLSearchParams(location.search).get('character') || 'odette');
+const initialCharacterId = new URLSearchParams(location.search).get('character');
+let catalogEntry = getCatalogCharacter(initialCharacterId || 'odette');
 let character = null;
 let ownership = analyzeGenshinOwnership(getData());
 let overrides = getRosterOverrides(getActiveProfile().id);
 let reactionFilter = 'all';
 let optimizerReaction = 'all';
 let buildableOnly = false;
+let rosterViewFilter = 'all';
+let currentView = initialCharacterId ? 'detail' : 'roster';
 let loadToken = 0;
 
 function readCache() {
@@ -106,6 +109,7 @@ function fallbackGuide(entry, detail = '') {
 }
 
 async function loadCharacter(entry) {
+  showView('detail');
   const token = ++loadToken;
   catalogEntry = entry;
   reactionFilter = 'all';
@@ -152,6 +156,92 @@ async function loadCharacter(entry) {
     }
     renderAll();
   }
+}
+
+
+function showView(view) {
+  currentView = view === 'detail' ? 'detail' : 'roster';
+  const roster = $('#character-roster-view');
+  const detail = $('#character-detail-view');
+  roster.hidden = currentView !== 'roster';
+  detail.hidden = currentView !== 'detail';
+  if (currentView === 'roster') {
+    document.title = 'Genshin Character Builds — Convene';
+    setGuideStatus();
+  }
+}
+
+function rosterCharacterStatus(entry) {
+  return characterHistoryStatus(entry.name, ownership, 0, overrides);
+}
+
+function renderRosterHome() {
+  ownership = analyzeGenshinOwnership(getData());
+  overrides = getRosterOverrides(getActiveProfile().id);
+
+  const needle = String($('#roster-search')?.value || '').trim().toLowerCase();
+  const rows = GENSHIN_BUILD_CATALOG.map((entry) => {
+    const status = rosterCharacterStatus(entry);
+    return { entry, status, owned: status.state === 'verified' };
+  });
+
+  const ownedCount = rows.filter((row) => row.owned).length;
+  $('#roster-owned-count').textContent = ownedCount.toLocaleString();
+  $('#roster-locked-count').textContent = (rows.length - ownedCount).toLocaleString();
+
+  $('#roster-filters').querySelectorAll('[data-roster-filter]').forEach((button) => {
+    button.classList.toggle('roster-filter--on', button.dataset.rosterFilter === rosterViewFilter);
+  });
+
+  const visible = rows.filter(({ entry, owned }) => {
+    const matchesSearch = !needle || entry.name.toLowerCase().includes(needle) || entry.guideName.toLowerCase().includes(needle);
+    if (!matchesSearch) return false;
+    if (rosterViewFilter === 'owned') return owned;
+    if (rosterViewFilter === 'locked') return !owned;
+    return true;
+  });
+
+  $('#character-grid').innerHTML = visible.length ? visible.map(({ entry, status, owned }) => {
+    const locked = !owned;
+    const manualUnowned = status.state === 'unowned';
+    const ownershipLabel = owned ? status.label : manualUnowned ? 'Not owned' : 'Not confirmed';
+    const title = owned
+      ? `${entry.name} · ${status.label}`
+      : `${entry.name} · ${manualUnowned ? 'marked not owned' : 'not confirmed on this profile'} · click to view the guide`;
+    return `<button class="roster-character-card ${owned ? 'roster-character-card--owned' : 'roster-character-card--locked'}" type="button" data-character-id="${esc(entry.id)}" title="${esc(title)}">
+      <span class="roster-character__portrait">
+        ${imageTile(entry.name, 'Character', 'character', 'roster-character__icon')}
+        ${locked ? '<span class="roster-character__lock" aria-hidden="true">🔒</span>' : '<span class="roster-character__owned" aria-hidden="true">✓</span>'}
+      </span>
+      <span class="roster-character__copy">
+        <b>${esc(entry.name)}</b>
+        <small class="roster-character__rarity">${entry.rarity === 5 ? '★★★★★' : '★★★★'}</small>
+        <small class="roster-character__status">${esc(ownershipLabel)}</small>
+      </span>
+    </button>`;
+  }).join('') : `<div class="build-empty roster-empty"><b>No characters match.</b><span>Try another search or roster filter.</span></div>`;
+
+  hydrateIcons($('#character-grid'));
+}
+
+function openCharacter(entry, historyMode = 'push') {
+  const url = new URL(location.href);
+  url.searchParams.set('character', entry.id);
+  if (historyMode === 'replace') history.replaceState(null, '', url);
+  else if (historyMode !== 'none') history.pushState(null, '', url);
+  showView('detail');
+  $('#character-search').value = '';
+  loadCharacter(entry);
+}
+
+function openRoster(historyMode = 'push') {
+  const url = new URL(location.href);
+  url.searchParams.delete('character');
+  if (historyMode === 'replace') history.replaceState(null, '', url);
+  else if (historyMode !== 'none') history.pushState(null, '', url);
+  showView('roster');
+  renderProfilePicker();
+  renderRosterHome();
 }
 
 function renderProfilePicker() {
@@ -210,6 +300,57 @@ function memberCard(member) {
   </div>`;
 }
 
+
+function replacementSuggestions(team, account) {
+  if (account.fullyVerified || !account.blockers.length) return '';
+  const suggestions = suggestTeamSubstitutions(
+    team,
+    character.teams || [],
+    ownership,
+    overrides,
+    character.name,
+    character.variants || [],
+    3,
+  );
+  if (!suggestions.length) return '';
+
+  const rows = suggestions.map((entry) => {
+    const missingName = entry.member?.name || 'Missing slot';
+    if (entry.coreCharacter) {
+      return `<div class="replacement-row">
+        <div class="replacement-missing"><span>Missing</span><b>${esc(missingName)}</b></div>
+        <div class="replacement-none"><b>Core character</b><span>This build guide is centered on ${esc(character.name)}, so Convene will not suggest replacing them with a different carry.</span></div>
+      </div>`;
+    }
+
+    if (!entry.candidates.length) {
+      return `<div class="replacement-row">
+        <div class="replacement-missing"><span>Instead of</span><b>${esc(missingName)}</b></div>
+        <div class="replacement-none"><b>No source-backed swap found</b><span>This slot may be important to the team core. Convene avoids inventing a generic replacement.</span></div>
+      </div>`;
+    }
+
+    return `<div class="replacement-row">
+      <div class="replacement-missing"><span>Instead of</span><b>${esc(missingName)}</b></div>
+      <div class="replacement-options">${entry.candidates.map((candidate, index) => {
+        const status = candidate.status || { state:'unknown', label:'Ownership unknown' };
+        const why = candidate.evidence?.[0] || 'Guide-backed alternative';
+        const requirement = Number(candidate.minConstellation || 0) > 0 ? ` · C${candidate.minConstellation}+ source requirement` : '';
+        return `<div class="replacement-option replacement-option--${esc(status.state)}">
+          ${imageTile(candidate.name, 'Character', 'character', 'replacement-option__icon')}
+          <div><b>${esc(candidate.name)}</b><small>${esc(why)}${esc(requirement)}</small><span>${esc(status.label)}</span></div>
+          ${index === 0 && status.state === 'verified' ? '<i class="replacement-best">BEST OWNED</i>' : ''}
+        </div>`;
+      }).join('')}</div>
+    </div>`;
+  }).join('');
+
+  return `<div class="team-replacements">
+    <div class="team-replacements__head"><b>Suggested replacements</b><span>Source-backed swaps · owned characters first · the original team’s DPS/tier does not carry over after a replacement.</span></div>
+    ${rows}
+  </div>`;
+}
+
 function metricForTeam(team, personalRank = null) {
   if (Number.isFinite(Number(team.dps))) return `<div class="build-dps"><strong>${fmt.format(Number(team.dps))}</strong><span>PUBLISHED DPS</span></div>`;
   const tier = team.tier && team.tier !== 'Guide' ? `Tier ${team.tier}` : 'Guide ranked';
@@ -228,7 +369,7 @@ function teamCard(team, { personalRank = null, closest = false } = {}) {
     <div class="build-team__body">
       <div class="build-team__title"><div><h3>${esc(team.name)}</h3><p>${esc(team.note || '')}</p></div>${metricForTeam(team, personalRank)}</div>
       <div class="build-units">${(team.members || []).map(memberCard).join('')}</div>
-      ${meter}${blockers}
+      ${meter}${blockers}${replacementSuggestions(team, account)}
       <div class="build-team__foot"><span>${team.tier ? `Tier ${esc(team.tier)}` : Number.isFinite(Number(team.relative)) ? `${esc(team.relative)}% of source #1` : 'Source-ranked'}</span><span>Source rank #${esc(team.rank)}</span><span class="account-fit ${account.fullyVerified ? 'account-fit--yes' : ''}">${esc(accountLabel)}</span></div>
     </div>
   </article>`;
@@ -363,16 +504,16 @@ $('#build-profile-select').addEventListener('change', (event) => {
   switchProfile(event.target.value);
   ownership = analyzeGenshinOwnership(getData());
   overrides = getRosterOverrides(getActiveProfile().id);
-  renderAll();
+  if (currentView === 'roster') {
+    renderProfilePicker();
+    renderRosterHome();
+  } else {
+    renderAll();
+  }
 });
 
 $('#character-select').addEventListener('change', (event) => {
-  const entry = getCatalogCharacter(event.target.value);
-  const url = new URL(location.href);
-  url.searchParams.set('character', entry.id);
-  history.replaceState(null, '', url);
-  $('#character-search').value = '';
-  loadCharacter(entry);
+  openCharacter(getCatalogCharacter(event.target.value));
 });
 
 $('#character-search').addEventListener('input', () => renderCharacterPicker());
@@ -393,4 +534,31 @@ $('#roster-reset').addEventListener('click', () => {
   renderPersonalLayers();
 });
 
-loadCharacter(catalogEntry);
+$('#roster-search').addEventListener('input', renderRosterHome);
+$('#roster-filters').querySelectorAll('[data-roster-filter]').forEach((button) => button.addEventListener('click', () => {
+  rosterViewFilter = button.dataset.rosterFilter;
+  renderRosterHome();
+}));
+$('#character-grid').addEventListener('click', (event) => {
+  const card = event.target.closest('[data-character-id]');
+  if (!card) return;
+  openCharacter(getCatalogCharacter(card.dataset.characterId));
+});
+$('#back-to-roster').addEventListener('click', () => openRoster());
+
+window.addEventListener('popstate', () => {
+  const id = new URLSearchParams(location.search).get('character');
+  if (!id) {
+    openRoster('none');
+    return;
+  }
+  openCharacter(getCatalogCharacter(id), 'none');
+});
+
+renderProfilePicker();
+if (initialCharacterId) {
+  showView('detail');
+  loadCharacter(catalogEntry);
+} else {
+  openRoster('none');
+}

@@ -144,7 +144,9 @@ saved as a visible `gacha-tracker-data.json` file in the user's Drive. See
 ## Character builds
 
 Open **Character builds** from the tracker header. The Builds area is currently **Genshin-only** and
-contains the full 125-character Version 7.0 combat roster in `public/js/build-catalog.js`.
+opens on a full 125-character Version 7.0 roster grid from `public/js/build-catalog.js`. Characters
+confirmed by the selected profile are shown normally; unconfirmed or manually unowned characters are
+greyed out with a lock icon. Locked cards remain clickable so users can still inspect future-pull builds.
 
 Most characters use a small server-side normalizer (`/api/build-guide`) so Convene can refresh current
 weapon/artifact/stat ordering from Genshin.gg and ranked team guides from Genshin-Builds.com without

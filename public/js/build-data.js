@@ -28,6 +28,105 @@ export const BUILD_CHARACTERS = [
         'Energy Recharge is low priority unless you intentionally Burst every rotation.',
       ],
     },
+    theorycraft: {
+      assumptions: [
+        "These are account-built theorycrafts assembled from source-backed role/flex recommendations, not published simulator teams.",
+        "Witch's Revelation passives are assumed unlocked for Diona/Qiqi/Beidou/Yae/Mizuki where their Stellar functionality depends on them.",
+        "Hexerei: Secret Rite is separate from Witch's Revelation and only activates with at least two Hexerei characters whose Witch's Homework has been completed.",
+      ],
+      archetypes: [
+        {
+          name: 'Flexible Stellar-Conduct',
+          nameTemplate: '{carry} Stellar-Conduct',
+          reaction: 'Stellar-Conduct',
+          baseScore: 20,
+          summary: 'Practical Odette Stellar-Conduct shell: an on-field Stellar-Conduct DPS, Odette, an Electro applicator, and a Cryo sustain/support. Ranked by current guide preference, not simulated DPS.',
+          notes: [
+            'Yae Miko remains the premium Electro slot in current guides; Alyosha, Beidou and Fischl are progressively more budget-oriented alternatives.',
+            'Qiqi and Diona fill a similar Cryo sustain role. Diona trades some ceiling for a shield and becomes much stronger for Stellar-Conduct at C6.',
+          ],
+          sources: [
+            'Icy Veins — Odette Team Guide',
+            'Icy Veins — Cryo Traveler Team Guide',
+            'GameWith — Best Teams for Odette',
+            'KQM — Diona Quick Guide',
+          ],
+          slots: [
+            {
+              key: 'carry',
+              label: 'On-field Stellar-Conduct DPS',
+              candidates: [
+                { name: 'Sandrone', role: 'Main DPS', score: 100, note: 'Premium Stellar-Conduct carry.' },
+                { name: 'Cryo Traveler', role: 'Main DPS', score: 91, note: 'Free, source-supported on-field Stellar-Conduct option.' },
+                { name: 'Wriothesley', role: 'Main DPS', score: 90, note: 'Dedicated Stellar-Conduct carry; higher constellations improve his ceiling.' },
+                { name: 'Cyno', role: 'Main DPS', score: 84, note: 'Viable on-field Stellar-Conduct carry.' },
+              ],
+            },
+            { key: 'odette', label: 'Stellar support', fixed: 'Odette', role: 'Stellar support', score: 100 },
+            {
+              key: 'electro',
+              label: 'Off-field Electro / Conduct support',
+              candidates: [
+                { name: 'Yae Miko', role: 'Electro sub-DPS', score: 100, note: 'Best raw-damage Electro option in current Odette guidance.', constellationBonuses: [{ constellation: 1, score: 8, note: 'C1 adds further Stellar-Conduct value.' }] },
+                { name: 'Alyosha', role: 'Electro support', score: 82, note: 'Good Electro application and support; lower personal ceiling than Yae.', constellationBonuses: [{ constellation: 2, score: 10, note: 'C2 is an important power breakpoint.' }, { constellation: 6, score: 8, note: 'C6 further improves the support slot.' }] },
+                { name: 'Beidou', role: 'Electro sub-DPS / defense', score: 78, note: 'Passable Yae alternative with interruption resistance; requires more Energy.', constellationBonuses: [{ constellation: 6, score: 10, note: 'C6 adds stronger Stellar-Conduct/Cryo support.' }] },
+                { name: 'Fischl', role: 'Electro sub-DPS', score: 66, note: 'Budget off-field Electro alternative. Lower team ceiling than Yae/Alyosha/Beidou.' },
+              ],
+            },
+            {
+              key: 'sustain',
+              label: 'Cryo sustain / Stellar support',
+              candidates: [
+                { name: 'Qiqi', role: 'Cryo sustain / support', score: 100, note: 'High-uptime healing and strong teamwide Stellar-Conduct support after Witch’s Revelation.' },
+                { name: 'Diona', role: 'Cryo shield / sustain', score: 82, note: 'Valid Qiqi substitute with shield, healing and extra Cryo application.', constellationBonuses: [{ constellation: 6, score: 16, note: 'C6 gives a major Stellar-Conduct/Superconduct damage buff inside her Burst.' }] },
+                { name: 'Escoffier', role: 'Cryo sub-DPS / healer', score: 80, note: 'Off-field Cryo application plus healing; viable Conduct flex.' },
+              ],
+            },
+          ],
+        },
+        {
+          name: 'Flexible Stellar-Swirl',
+          nameTemplate: '{carry} Stellar-Swirl',
+          reaction: 'Stellar-Swirl',
+          baseScore: 20,
+          summary: 'Odette Stellar-Swirl shell assembled from current source-backed roles. Mizuki + Odette + Cryo Traveler + Sucrose remains the clearest low-ambiguity core.',
+          notes: [
+            'Cryo Traveler is one of the strongest supports for Odette Stellar-Swirl, while Sucrose supplies EM support and additional Swirl triggers.',
+          ],
+          sources: [
+            'Icy Veins — Odette Team Guide',
+            'KQM — Mizuki Quick Guide',
+          ],
+          slots: [
+            {
+              key: 'carry',
+              label: 'Stellar-Swirl DPS',
+              candidates: [
+                { name: 'Yumemizuki Mizuki', role: 'Main DPS', score: 100, note: 'Primary source-backed Stellar-Swirl on-field DPS with Odette.' },
+                { name: 'Sandrone', role: 'Main DPS', score: 78, note: 'Can also function in Stellar-Swirl variants.' },
+              ],
+            },
+            { key: 'odette', label: 'Stellar enabler', fixed: 'Odette', role: 'Stellar enabler', score: 100 },
+            {
+              key: 'cryo',
+              label: 'Cryo support',
+              candidates: [
+                { name: 'Cryo Traveler', role: 'Cryo sub-DPS / Stellar support', score: 100, note: 'Excellent off-field Cryo Stellar-Swirl damage and Stellar buffs.' },
+                { name: 'Qiqi', role: 'Cryo sustain / support', score: 82, note: 'Sustain-oriented Cryo Stellar flex.' },
+                { name: 'Diona', role: 'Cryo shield / sustain', score: 78, note: 'Comfort-oriented Cryo flex; shield and healing.' },
+              ],
+            },
+            {
+              key: 'anemo',
+              label: 'Anemo support',
+              candidates: [
+                { name: 'Sucrose', role: 'Anemo support', score: 100, note: 'Strong EM support and additional Swirl triggering.' },
+              ],
+            },
+          ],
+        },
+      ],
+    },
     teams: [
       {
         rank: 1,

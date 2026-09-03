@@ -4,6 +4,7 @@ import { findBuildCharacter } from './build-data.js?v=20260903b';
 import { GENSHIN_BUILD_CATALOG, canonicalCharacterName, getCatalogCharacter, guideQuery } from './build-catalog.js?v=20260903b';
 import { analyzeGenshinOwnership, buildGuideVariantTeams, characterHistoryStatus, rankBuildableTeams, rankClosestTeams, suggestAlternativeLineups, suggestTeamSubstitutions, teamHistoryStatus, weaponHistoryStatus } from './build-account.js?v=20260903e';
 import { clearRosterOverrides, getRosterOverrides, setRosterOverride } from './build-roster.js?v=20260903b';
+import { generateAccountTheorycrafts } from './build-theorycraft.js?v=20260903a';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[char]));
@@ -424,8 +425,19 @@ function replacementSuggestions(team, account) {
   return `<div class="team-replacements"><div class="team-replacements__head"><b>Roster alternatives</b><span>“Instead of” now means an exact one-slot source swap. Full-team alternatives are kept separate so role changes are never hidden.</span></div>${rows}${alternatives}<div class="lineup-preview" hidden></div></div>`;
 }
 
+
+function theorycraftNotesMarkup(team) {
+  if (!team?.isTheorycraft) return '';
+  const notes = team.theorycraftNotes || [];
+  return `<div class="theorycraft-explain">
+    <div class="theorycraft-explain__head"><b>Why Convene built this team</b><span>Account theorycraft · source-backed flex roles · no published DPS</span></div>
+    ${notes.length ? `<ul>${notes.map((note) => `<li>${esc(note)}</li>`).join('')}</ul>` : ''}
+  </div>`;
+}
+
 function metricForTeam(team, personalRank = null) {
   if (Number.isFinite(Number(team.dps))) return `<div class="build-dps"><strong>${fmt.format(Number(team.dps))}</strong><span>PUBLISHED DPS</span></div>`;
+  if (team.isTheorycraft) return `<div class="build-dps build-dps--theory"><strong>Account theorycraft</strong><span>${personalRank ? `TC #${personalRank} · ` : ''}NO PUBLISHED DPS</span></div>`;
   if (team.isVariant) return `<div class="build-dps build-dps--tier"><strong>Guide variant</strong><span>${personalRank ? `YOUR #${personalRank} · ` : ''}NO INVENTED DPS</span></div>`;
   const tier = team.tier && team.tier !== 'Guide' ? `Tier ${team.tier}` : 'Guide ranked';
   return `<div class="build-dps build-dps--tier"><strong>${esc(tier)}</strong><span>${personalRank ? `YOUR #${personalRank} · ` : ''}SOURCE #${esc(team.rank)}</span></div>`;
@@ -443,8 +455,9 @@ function teamCard(team, { personalRank = null, closest = false } = {}) {
     <div class="build-team__body">
       <div class="build-team__title"><div><h3>${esc(team.name)}</h3><p>${esc(team.note || '')}</p></div>${metricForTeam(team, personalRank)}</div>
       <div class="build-units">${(team.members || []).map(memberCard).join('')}</div>
-      ${meter}${blockers}${replacementSuggestions(team, account)}
-      <div class="build-team__foot"><span>${team.isVariant ? 'Guide-backed variant' : team.tier ? `Tier ${esc(team.tier)}` : Number.isFinite(Number(team.relative)) ? `${esc(team.relative)}% of source #1` : 'Source-ranked'}</span>${team.isVariant ? '' : `<span>Source rank #${esc(team.rank)}</span>`}<span class="account-fit ${account.fullyVerified ? 'account-fit--yes' : ''}">${esc(accountLabel)}</span></div>
+      ${theorycraftNotesMarkup(team)}
+      ${meter}${blockers}${team.isTheorycraft ? '' : replacementSuggestions(team, account)}
+      <div class="build-team__foot"><span>${team.isTheorycraft ? 'Guide-supported account theorycraft' : team.isVariant ? 'Guide-backed variant' : team.tier ? `Tier ${esc(team.tier)}` : Number.isFinite(Number(team.relative)) ? `${esc(team.relative)}% of source #1` : 'Source-ranked'}</span>${team.isVariant || team.isTheorycraft ? '' : `<span>Source rank #${esc(team.rank)}</span>`}<span class="account-fit ${account.fullyVerified ? 'account-fit--yes' : ''}">${esc(accountLabel)}</span></div>
     </div>
   </article>`;
 }
@@ -463,16 +476,42 @@ function filterButtons(container, selected, includeBuildable = false) {
 function renderOptimizer() {
   const all = filterTeams(optimizerTeamPool(), optimizerReaction);
   const ranked = rankBuildableTeams(all, ownership, overrides);
-  filterButtons($('#optimizer-filters'), optimizerReaction, false);
-  $('#optimizer-filters').querySelectorAll('[data-filter-value]').forEach((button) => button.addEventListener('click', () => { optimizerReaction = button.dataset.filterValue; renderOptimizer(); hydrateIcons($('#my-teams')); hydrateIcons($('#closest-teams')); }));
+  const theorycrafts = generateAccountTheorycrafts(
+    character,
+    ownership,
+    overrides,
+    optimizerReaction,
+    ranked.map((entry) => entry.team),
+    6,
+  );
 
-  $('#my-teams').innerHTML = ranked.length
-    ? ranked.slice(0, 6).map((entry, index) => teamCard(entry.team, { personalRank:index + 1 })).join('')
-    : `<div class="build-empty"><b>No source or guide team is fully verified yet.</b><span>Roster history can be incomplete. Check the closest teams below or open Roster corrections to confirm older/free characters.</span></div>`;
+  filterButtons($('#optimizer-filters'), optimizerReaction, false);
+  $('#optimizer-filters').querySelectorAll('[data-filter-value]').forEach((button) => button.addEventListener('click', () => {
+    optimizerReaction = button.dataset.filterValue;
+    renderOptimizer();
+    hydrateIcons($('#my-teams'));
+    hydrateIcons($('#closest-teams'));
+  }));
+
+  const verifiedMarkup = ranked.length
+    ? `<div class="optimizer-subhead"><b>Verified source / guide teams</b><span>Exact lineups already supported by the current guide data.</span></div>${ranked.slice(0, 6).map((entry, index) => teamCard(entry.team, { personalRank:index + 1 })).join('')}`
+    : '';
+
+  const theoryMarkup = theorycrafts.length
+    ? `<div class="optimizer-subhead optimizer-subhead--theory"><b>Account theorycrafts</b><span>Built from characters Convene confirms you own, using source-backed role and flex-slot rules. These are not published DPS simulations.</span></div>${theorycrafts.map((team, index) => teamCard(team, { personalRank:index + 1 })).join('')}`
+    : '';
+
+  $('#my-teams').innerHTML = verifiedMarkup || theoryMarkup
+    ? `${verifiedMarkup}${theoryMarkup}`
+    : `<div class="build-empty"><b>No playable source-backed shell could be assembled yet.</b><span>Roster history can be incomplete. Open Roster corrections to confirm older/free characters, or switch reaction filters.</span></div>`;
 
   const closest = rankClosestTeams(all, ownership, overrides, 4);
-  $('#closest-teams').innerHTML = closest.length ? closest.map((entry) => teamCard(entry.team, { closest:true })).join('') : `<div class="build-empty"><b>No locked teams to show.</b><span>${ranked.length ? 'Every source-ranked team in this filter is roster verified.' : 'No team data is available for this character/filter.'}</span></div>`;
-  hydrateIcons($('#my-teams')); hydrateIcons($('#closest-teams'));
+  $('#closest-teams').innerHTML = closest.length
+    ? closest.map((entry) => teamCard(entry.team, { closest:true })).join('')
+    : `<div class="build-empty"><b>No locked source teams to show.</b><span>${ranked.length || theorycrafts.length ? 'Your roster already has playable options in this filter.' : 'No team data is available for this character/filter.'}</span></div>`;
+
+  hydrateIcons($('#my-teams'));
+  hydrateIcons($('#closest-teams'));
 }
 
 function renderTeams() {
@@ -523,6 +562,12 @@ function relevantRosterNames() {
   const names = new Set([character.name]);
   for (const team of character.teams || []) for (const member of team.members || []) names.add(canonicalCharacterName(member.name));
   for (const variant of character.variants || []) for (const name of variant.members || []) names.add(canonicalCharacterName(name));
+  for (const archetype of character.theorycraft?.archetypes || []) {
+    for (const slot of archetype.slots || []) {
+      if (slot.fixed) names.add(canonicalCharacterName(slot.fixed));
+      for (const candidate of slot.candidates || []) names.add(canonicalCharacterName(candidate.name));
+    }
+  }
   return [...names].sort((a,b) => a.localeCompare(b));
 }
 

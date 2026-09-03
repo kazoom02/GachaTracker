@@ -125,6 +125,28 @@ function canonicalTeamMembers(team) {
  * Missing focus characters are intentionally not replaced: the build page is about that
  * character, so replacing them would turn the recommendation into a different guide.
  */
+export function buildGuideVariantTeams(variants = [], startRank = 50) {
+  return (variants || []).map((variant, index) => ({
+    rank: startRank + index,
+    sourceRank: null,
+    isVariant: true,
+    name: variant.name || `${variant.reaction || 'Guide'} guide variant`,
+    reaction: variant.reaction || 'General',
+    tier: 'Guide',
+    note: variant.note || 'Guide-backed alternative lineup. No comparable DPS number is assigned.',
+    members: (variant.members || []).map((member) => typeof member === 'string'
+      ? { name: canonicalCharacterName(member), role: '', minConstellation: 0 }
+      : { ...member, name: canonicalCharacterName(member.name), minConstellation: Number(member.minConstellation || 0) }),
+  }));
+}
+
+/**
+ * Exact one-slot, source-backed substitutions for blocked members.
+ *
+ * A suggestion is only called "instead of X" when the alternate source lineup keeps
+ * every other member and removes X. This prevents misleading cases where a nearby team
+ * changes two slots but the UI accidentally implies that only one character changed.
+ */
 export function suggestTeamSubstitutions(
   team,
   allTeams = [],
@@ -138,145 +160,120 @@ export function suggestTeamSubstitutions(
   const baseMembers = canonicalTeamMembers(team);
   const baseNames = new Set(baseMembers.map((member) => member.canonical));
   const focus = canonicalCharacterName(focusName);
+  const variantTeams = buildGuideVariantTeams(variants);
+  const pool = [...(allTeams || []), ...variantTeams];
   const output = [];
 
   for (const blocker of account.blockers) {
     const missing = canonicalCharacterName(blocker.member.name);
     if (missing === focus) {
-      output.push({
-        member: blocker.member,
-        status: blocker.status,
-        coreCharacter: true,
-        candidates: [],
-      });
+      output.push({ member: blocker.member, status: blocker.status, coreCharacter: true, candidates: [] });
       continue;
     }
 
-    const targetIndex = baseMembers.findIndex((member) => member.canonical === missing);
-    const targetRole = roleKey(blocker.member.role);
     const candidates = new Map();
+    for (const targetTeam of pool) {
+      if (!targetTeam || targetTeam === team) continue;
+      const targetMembers = canonicalTeamMembers(targetTeam);
+      const targetNames = new Set(targetMembers.map((member) => member.canonical));
+      if (focus && !targetNames.has(focus)) continue;
+      if (targetNames.has(missing)) continue; // this lineup does not actually replace the blocker
+      if (targetMembers.length !== baseMembers.length) continue;
 
-    function addCandidate(rawMember, evidence = {}) {
-      if (!rawMember?.name) return;
-      const canonical = canonicalCharacterName(rawMember.name);
-      if (!canonical || canonical === missing || canonical === focus || baseNames.has(canonical)) return;
+      const retained = baseMembers.filter((member) => member.canonical !== missing && targetNames.has(member.canonical));
+      const incoming = targetMembers.filter((member) => !baseNames.has(member.canonical));
+      if (retained.length !== baseMembers.length - 1 || incoming.length !== 1) continue;
 
-      const minimumConstellation = Math.max(0, Number(rawMember.minConstellation || 0));
-      const status = characterHistoryStatus(canonical, ownership, minimumConstellation, overrides);
-      if (status.state === 'unowned') return;
-
-      const existing = candidates.get(canonical) || {
-        name: canonical,
-        role: rawMember.role || '',
-        minConstellation: minimumConstellation,
+      const replacement = incoming[0];
+      const status = characterHistoryStatus(replacement.canonical, ownership, replacement.minConstellation || 0, overrides);
+      if (status.state === 'unowned') continue;
+      const targetAccount = teamHistoryStatus(targetTeam, ownership, overrides);
+      const key = replacement.canonical;
+      const candidate = {
+        name: replacement.canonical,
+        role: replacement.role || '',
+        minConstellation: Number(replacement.minConstellation || 0),
         status,
-        score: 0,
-        evidence: new Set(),
-        bestSourceRank: 999,
+        targetTeam,
+        targetAccount,
+        evidence: [targetTeam.isVariant ? 'Exact one-slot guide variant' : 'Exact one-slot source swap'],
+        score: (status.state === 'verified' ? 1000 : status.state === 'short' ? 160 : 20)
+          + (targetAccount.fullyVerified ? 300 : 0)
+          - targetAccount.blockers.length * 35
+          + sourceStrengthBonus(targetTeam),
       };
-
-      // If the same candidate appears with different requirements, prefer the least
-      // restrictive source-backed requirement for an actual substitution suggestion.
-      if (minimumConstellation < existing.minConstellation) {
-        existing.minConstellation = minimumConstellation;
-        existing.status = characterHistoryStatus(canonical, ownership, minimumConstellation, overrides);
-      }
-      if (!existing.role && rawMember.role) existing.role = rawMember.role;
-
-      if (evidence.directCore) {
-        existing.score += 190;
-        existing.evidence.add('Direct guide swap');
-      }
-      if (evidence.roleMatch) {
-        existing.score += 95;
-        existing.evidence.add('Same role');
-      }
-      if (evidence.sameSlot) {
-        existing.score += 45;
-        existing.evidence.add('Same team slot');
-      }
-      if (evidence.variant) {
-        existing.score += 80;
-        existing.evidence.add('Guide-backed variant');
-      }
-      if (evidence.team) {
-        existing.score += sourceStrengthBonus(evidence.team);
-        existing.bestSourceRank = Math.min(existing.bestSourceRank, Number(evidence.team.rank || 999));
-      }
-
-      // Roster-aware ordering is intentionally dominant.
-      if (existing.status.state === 'verified') existing.score += 1000;
-      else if (existing.status.state === 'short') existing.score += 160;
-      else if (existing.status.state === 'unknown') existing.score += 20;
-
-      candidates.set(canonical, existing);
-    }
-
-    for (const otherTeam of allTeams || []) {
-      if (!otherTeam || otherTeam === team) continue;
-      const otherMembers = canonicalTeamMembers(otherTeam);
-      const otherNames = new Set(otherMembers.map((member) => member.canonical));
-      if (focus && !otherNames.has(focus)) continue;
-
-      let retained = 0;
-      for (const base of baseMembers) {
-        if (base.canonical === missing) continue;
-        if (otherNames.has(base.canonical)) retained++;
-      }
-      // A four-character team retaining at least two of the other three members is a
-      // meaningful direct-core swap. This remains useful when source pages reorder slots.
-      const directCore = retained >= Math.max(2, baseMembers.length - 2);
-
-      otherMembers.forEach((candidate, index) => {
-        if (baseNames.has(candidate.canonical)) return;
-        const candidateRole = roleKey(candidate.role);
-        const roleMatch = Boolean(targetRole && candidateRole && targetRole === candidateRole);
-        const sameSlot = index === targetIndex;
-        if (!directCore && !roleMatch && !sameSlot) return;
-        addCandidate(candidate, { directCore, roleMatch, sameSlot, team: otherTeam });
-      });
-    }
-
-    // Variants do not always carry explicit roles, but an almost-identical core is still
-    // meaningful source evidence for a swap.
-    for (const variant of variants || []) {
-      const variantNames = (variant?.members || []).map((name) => canonicalCharacterName(name));
-      if (!variantNames.length || (focus && !variantNames.includes(focus))) continue;
-      let retained = 0;
-      for (const base of baseMembers) {
-        if (base.canonical === missing) continue;
-        if (variantNames.includes(base.canonical)) retained++;
-      }
-      if (retained < Math.max(2, baseMembers.length - 2)) continue;
-      for (const name of variantNames) {
-        if (baseNames.has(name) || name === focus) continue;
-        addCandidate({ name, role: '', minConstellation: 0 }, { directCore: true, variant: true });
-      }
+      const previous = candidates.get(key);
+      if (!previous || candidate.score > previous.score) candidates.set(key, candidate);
     }
 
     const ranked = [...candidates.values()]
-      .sort((a, b) => {
-        const stateScore = (state) => ({ verified: 4, short: 3, unknown: 2, unowned: 0 }[state] || 0);
-        return stateScore(b.status.state) - stateScore(a.status.state)
-          || b.score - a.score
-          || a.bestSourceRank - b.bestSourceRank
-          || a.name.localeCompare(b.name);
-      })
-      .slice(0, Math.max(1, Number(limitPerMember || 3)))
-      .map((candidate) => ({
-        ...candidate,
-        evidence: [...candidate.evidence],
-      }));
+      .sort((a, b) => b.score - a.score || a.name.localeCompare(b.name))
+      .slice(0, Math.max(1, Number(limitPerMember || 3)));
+    output.push({ member: blocker.member, status: blocker.status, coreCharacter: false, candidates: ranked });
+  }
+  return output;
+}
 
-    output.push({
-      member: blocker.member,
-      status: blocker.status,
-      coreCharacter: false,
-      candidates: ranked,
+/**
+ * Full alternative lineups. Unlike one-slot substitutions these are deliberately shown as
+ * complete teams, because two or more members may change. Fully playable teams are ranked
+ * first, then the alternatives with the fewest blockers and greatest overlap with the base.
+ */
+export function suggestAlternativeLineups(
+  team,
+  allTeams = [],
+  ownership,
+  overrides = {},
+  focusName = '',
+  variants = [],
+  limit = 4,
+) {
+  const baseMembers = canonicalTeamMembers(team);
+  const baseNames = new Set(baseMembers.map((member) => member.canonical));
+  const baseSignature = [...baseNames].sort().join('|');
+  const baseAccount = teamHistoryStatus(team, ownership, overrides);
+  const blockerNames = new Set(baseAccount.blockers.map((entry) => canonicalCharacterName(entry.member.name)));
+  const focus = canonicalCharacterName(focusName);
+  const pool = [...(allTeams || []), ...buildGuideVariantTeams(variants)];
+  const seen = new Set();
+  const rows = [];
+
+  for (const targetTeam of pool) {
+    if (!targetTeam || targetTeam === team) continue;
+    const targetMembers = canonicalTeamMembers(targetTeam);
+    if (!targetMembers.length) continue;
+    const targetNames = new Set(targetMembers.map((member) => member.canonical));
+    if (focus && !targetNames.has(focus)) continue;
+    const signature = [...targetNames].sort().join('|');
+    if (signature === baseSignature || seen.has(signature)) continue;
+    seen.add(signature);
+
+    const shared = baseMembers.filter((member) => targetNames.has(member.canonical)).length;
+    const removed = baseMembers.filter((member) => !targetNames.has(member.canonical)).map((member) => member.canonical);
+    const added = targetMembers.filter((member) => !baseNames.has(member.canonical)).map((member) => member.canonical);
+    const solvesBlockedSlot = removed.some((name) => blockerNames.has(name));
+    if (!solvesBlockedSlot && shared < Math.max(2, baseMembers.length - 2)) continue;
+
+    const account = teamHistoryStatus(targetTeam, ownership, overrides);
+    // Don't clutter the UI with an alternative that is strictly harder to build and barely related.
+    if (!account.fullyVerified && account.blockers.length > baseAccount.blockers.length && shared < baseMembers.length - 1) continue;
+
+    rows.push({
+      team: targetTeam,
+      account,
+      shared,
+      removed,
+      added,
+      score: (account.fullyVerified ? 10000 : 0)
+        - account.blockers.length * 1000
+        + shared * 150
+        + sourceStrengthBonus(targetTeam),
     });
   }
 
-  return output;
+  return rows
+    .sort((a, b) => b.score - a.score || Number(a.team.rank || 999) - Number(b.team.rank || 999))
+    .slice(0, Math.max(1, Number(limit || 4)));
 }
 
 function strength(team) {

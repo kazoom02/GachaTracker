@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { analyzeGenshinOwnership, characterHistoryStatus, rankBuildableTeams, rankClosestTeams, suggestTeamSubstitutions, teamHistoryStatus, weaponHistoryStatus } from '../public/js/build-account.js';
+import { analyzeGenshinOwnership, buildGuideVariantTeams, characterHistoryStatus, rankBuildableTeams, rankClosestTeams, suggestAlternativeLineups, suggestTeamSubstitutions, teamHistoryStatus, weaponHistoryStatus } from '../public/js/build-account.js';
 
 const data = {
   genshin: {
@@ -123,7 +123,8 @@ assert.equal(substitutions.length, 1);
 assert.equal(substitutions[0].member.name, 'Yae Miko');
 assert.equal(substitutions[0].candidates[0].name, 'Fischl');
 assert.equal(substitutions[0].candidates[0].status.state, 'verified');
-assert.ok(substitutions[0].candidates[0].evidence.includes('Direct guide swap'));
+assert.ok(substitutions[0].candidates[0].evidence.includes('Exact one-slot source swap'));
+assert.equal(substitutions[0].candidates[0].targetTeam.name, 'Fischl swap');
 
 // The focus character should never get a misleading replacement suggestion.
 const missingFocusOwnership = analyzeGenshinOwnership({ genshin: { character: [{ name: 'Bennett', itemType: 'Character' }] } });
@@ -137,5 +138,55 @@ const focusSuggestions = suggestTeamSubstitutions(
 const focusEntry = focusSuggestions.find((entry) => entry.member.name === 'Arlecchino');
 assert.equal(focusEntry.coreCharacter, true);
 assert.deepEqual(focusEntry.candidates, []);
+
+
+
+// A character cannot be advertised as replacing a blocker if the target lineup still
+// contains that blocker. This guards the Sandrone -> Alyosha ambiguity seen in the UI.
+const ambiguousBase = {
+  rank: 1,
+  name: 'Sandrone Conduct',
+  members: [
+    { name: 'Sandrone', role: 'Main DPS' },
+    { name: 'Yae Miko', role: 'Sub DPS' },
+    { name: 'Odette', role: 'Support' },
+    { name: 'Qiqi', role: 'Sustain' },
+  ],
+};
+const alyoshaYaeSwap = {
+  rank: 2,
+  name: 'Alyosha Yae swap',
+  members: [
+    { name: 'Sandrone', role: 'Main DPS' },
+    { name: 'Alyosha', role: 'Sub DPS' },
+    { name: 'Odette', role: 'Support' },
+    { name: 'Qiqi', role: 'Sustain' },
+  ],
+};
+const ambiguousOwnership = analyzeGenshinOwnership({ genshin: { character: [
+  { name: 'Alyosha', itemType: 'Character' },
+  { name: 'Odette', itemType: 'Character' },
+  { name: 'Qiqi', itemType: 'Character' },
+] } });
+const ambiguousSubs = suggestTeamSubstitutions(ambiguousBase, [ambiguousBase, alyoshaYaeSwap], ambiguousOwnership, {}, 'Odette');
+const sandroneRow = ambiguousSubs.find((entry) => entry.member.name === 'Sandrone');
+const yaeRow = ambiguousSubs.find((entry) => entry.member.name === 'Yae Miko');
+assert.equal(sandroneRow.candidates.length, 0);
+assert.equal(yaeRow.candidates[0].name, 'Alyosha');
+
+// Guide variants are valid optimizer candidates without pretending they have published DPS.
+const guideVariants = buildGuideVariantTeams([{ reaction: 'Stellar-Swirl', members: ['Odette', 'Yumemizuki Mizuki', 'Cryo Traveler', 'Sucrose'], note: 'Guide fallback' }]);
+const guideOwnership = analyzeGenshinOwnership({ genshin: { character: [
+  { name: 'Odette', itemType: 'Character' },
+  { name: 'Yumemizuki Mizuki', itemType: 'Character' },
+  { name: 'Sucrose', itemType: 'Character' },
+] } });
+const guideRanked = rankBuildableTeams(guideVariants, guideOwnership, {});
+assert.equal(guideRanked.length, 1);
+assert.equal(guideRanked[0].team.isVariant, true);
+assert.equal(guideRanked[0].account.fullyVerified, true);
+
+const altRows = suggestAlternativeLineups(ambiguousBase, [ambiguousBase, alyoshaYaeSwap], ambiguousOwnership, {}, 'Odette', guideVariants.map((team) => ({ reaction:team.reaction, members:team.members.map((m)=>m.name), note:team.note })), 4);
+assert.ok(Array.isArray(altRows));
 
 console.log('Source-backed substitution tests passed');

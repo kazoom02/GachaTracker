@@ -2,7 +2,7 @@ import { iconCandidates } from './config.js?v=20260903b';
 import { getActiveProfile, getData, getProfiles, switchProfile } from './store.js?v=20260903b';
 import { findBuildCharacter } from './build-data.js?v=20260903b';
 import { GENSHIN_BUILD_CATALOG, canonicalCharacterName, getCatalogCharacter, guideQuery } from './build-catalog.js?v=20260903b';
-import { analyzeGenshinOwnership, characterHistoryStatus, rankBuildableTeams, rankClosestTeams, suggestTeamSubstitutions, teamHistoryStatus, weaponHistoryStatus } from './build-account.js?v=20260903d';
+import { analyzeGenshinOwnership, buildGuideVariantTeams, characterHistoryStatus, rankBuildableTeams, rankClosestTeams, suggestAlternativeLineups, suggestTeamSubstitutions, teamHistoryStatus, weaponHistoryStatus } from './build-account.js?v=20260903e';
 import { clearRosterOverrides, getRosterOverrides, setRosterOverride } from './build-roster.js?v=20260903b';
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -23,6 +23,19 @@ let buildableOnly = false;
 let rosterViewFilter = 'all';
 let currentView = initialCharacterId ? 'detail' : 'roster';
 let loadToken = 0;
+let previewSerial = 0;
+const lineupPreviewRegistry = new Map();
+
+function resetLineupPreviews() {
+  previewSerial = 0;
+  lineupPreviewRegistry.clear();
+}
+
+function registerLineupPreview(baseTeam, targetTeam, context = '') {
+  const id = `lineup-${++previewSerial}`;
+  lineupPreviewRegistry.set(id, { baseTeam, targetTeam, context });
+  return id;
+}
 
 function readCache() {
   try { return JSON.parse(localStorage.getItem(LIVE_CACHE_KEY) || '{}') || {}; } catch { return {}; }
@@ -301,6 +314,78 @@ function memberCard(member) {
 }
 
 
+
+function inferredRole(name) {
+  const canonical = canonicalCharacterName(name);
+  for (const sourceTeam of character?.teams || []) {
+    const found = (sourceTeam.members || []).find((member) => canonicalCharacterName(member.name) === canonical && member.role);
+    if (found?.role) return found.role;
+  }
+  return '';
+}
+
+function enrichVariantTeam(team) {
+  if (!team?.isVariant) return team;
+  return {
+    ...team,
+    members: (team.members || []).map((member) => ({ ...member, role: member.role || inferredRole(member.name) })),
+  };
+}
+
+function optimizerTeamPool() {
+  const variants = buildGuideVariantTeams(character?.variants || []).map(enrichVariantTeam);
+  return [...(character?.teams || []), ...variants];
+}
+
+function previewMemberCard(member) {
+  const normalized = { ...member, role: member.role || inferredRole(member.name) };
+  return memberCard(normalized);
+}
+
+function lineupPreviewMarkup(baseTeam, targetTeam, context = '') {
+  const target = enrichVariantTeam(targetTeam);
+  const account = teamHistoryStatus(target, ownership, overrides);
+  const baseNames = new Set((baseTeam?.members || []).map((member) => canonicalCharacterName(member.name)));
+  const targetNames = new Set((target?.members || []).map((member) => canonicalCharacterName(member.name)));
+  const removed = [...baseNames].filter((name) => !targetNames.has(name));
+  const added = [...targetNames].filter((name) => !baseNames.has(name));
+  const changeText = removed.length || added.length
+    ? `${removed.length ? `Remove ${removed.join(', ')}` : ''}${removed.length && added.length ? ' · ' : ''}${added.length ? `Add ${added.join(', ')}` : ''}`
+    : 'Same four-character core with different source requirements.';
+  const sourceLabel = target.isVariant
+    ? 'Guide-backed variant · no comparable DPS assigned'
+    : Number.isFinite(Number(target.dps))
+      ? `${fmt.format(Number(target.dps))} published DPS for this exact source lineup`
+      : `${target.tier ? `Tier ${target.tier} · ` : ''}source rank #${target.rank}`;
+  const fit = account.fullyVerified ? 'Fully playable on this profile' : `${account.verified}/${target.members.length} verified · ${account.blockers.length} blocker${account.blockers.length === 1 ? '' : 's'}`;
+  return `<div class="lineup-preview__head"><div><span>NEW TEAM PREVIEW</span><h4>${esc(target.name || context || 'Alternative lineup')}</h4><p>${esc(changeText)}</p></div><button type="button" class="lineup-preview__close" data-close-lineup-preview aria-label="Close preview">×</button></div>
+    <div class="build-units lineup-preview__units">${(target.members || []).map(previewMemberCard).join('')}</div>
+    <div class="lineup-preview__meta"><span>${esc(sourceLabel)}</span><b class="${account.fullyVerified ? 'lineup-preview__fit--yes' : ''}">${esc(fit)}</b></div>`;
+}
+
+function alternativeLineups(team) {
+  const rows = suggestAlternativeLineups(
+    team,
+    character.teams || [],
+    ownership,
+    overrides,
+    character.name,
+    character.variants || [],
+    4,
+  );
+  if (!rows.length) return '';
+  return `<div class="alternative-lineups"><div class="alternative-lineups__head"><b>Alternative full teams</b><span>These can change more than one slot. Click any lineup to preview the exact four characters.</span></div><div class="alternative-lineups__grid">${rows.map((entry) => {
+    const target = enrichVariantTeam(entry.team);
+    const previewId = registerLineupPreview(team, target, 'Alternative lineup');
+    const playable = entry.account.fullyVerified;
+    const label = target.isVariant ? 'Guide variant' : Number.isFinite(Number(target.dps)) ? `${fmt.format(Number(target.dps))} DPS` : `${target.tier ? `Tier ${target.tier} · ` : ''}source #${target.rank}`;
+    return `<button type="button" class="alternative-lineup ${playable ? 'alternative-lineup--playable' : ''}" data-lineup-preview="${esc(previewId)}">
+      <span class="alternative-lineup__icons">${(target.members || []).map((member) => imageTile(member.name, 'Character', 'character', 'alternative-lineup__icon')).join('')}</span>
+      <span class="alternative-lineup__copy"><b>${esc(target.name)}</b><small>${esc(label)}</small><em>${playable ? '✓ Playable on my roster' : `${entry.account.blockers.length} blocker${entry.account.blockers.length === 1 ? '' : 's'}`}</em></span>
+    </button>`;
+  }).join('')}</div></div>`;
+}
+
 function replacementSuggestions(team, account) {
   if (account.fullyVerified || !account.blockers.length) return '';
   const suggestions = suggestTeamSubstitutions(
@@ -312,47 +397,36 @@ function replacementSuggestions(team, account) {
     character.variants || [],
     3,
   );
-  if (!suggestions.length) return '';
 
   const rows = suggestions.map((entry) => {
     const missingName = entry.member?.name || 'Missing slot';
     if (entry.coreCharacter) {
-      return `<div class="replacement-row">
-        <div class="replacement-missing"><span>Missing</span><b>${esc(missingName)}</b></div>
-        <div class="replacement-none"><b>Core character</b><span>This build guide is centered on ${esc(character.name)}, so Convene will not suggest replacing them with a different carry.</span></div>
-      </div>`;
+      return `<div class="replacement-row"><div class="replacement-missing"><span>Missing</span><b>${esc(missingName)}</b></div><div class="replacement-none"><b>Core character</b><span>This guide is centered on ${esc(character.name)}, so this slot is not replaced with a different carry.</span></div></div>`;
     }
-
     if (!entry.candidates.length) {
-      return `<div class="replacement-row">
-        <div class="replacement-missing"><span>Instead of</span><b>${esc(missingName)}</b></div>
-        <div class="replacement-none"><b>No source-backed swap found</b><span>This slot may be important to the team core. Convene avoids inventing a generic replacement.</span></div>
-      </div>`;
+      return `<div class="replacement-row"><div class="replacement-missing"><span>Instead of</span><b>${esc(missingName)}</b></div><div class="replacement-none"><b>No exact one-slot source swap</b><span>Use the full-team alternatives below instead; they may change two or more members.</span></div></div>`;
     }
-
-    return `<div class="replacement-row">
-      <div class="replacement-missing"><span>Instead of</span><b>${esc(missingName)}</b></div>
-      <div class="replacement-options">${entry.candidates.map((candidate, index) => {
-        const status = candidate.status || { state:'unknown', label:'Ownership unknown' };
-        const why = candidate.evidence?.[0] || 'Guide-backed alternative';
-        const requirement = Number(candidate.minConstellation || 0) > 0 ? ` · C${candidate.minConstellation}+ source requirement` : '';
-        return `<div class="replacement-option replacement-option--${esc(status.state)}">
-          ${imageTile(candidate.name, 'Character', 'character', 'replacement-option__icon')}
-          <div><b>${esc(candidate.name)}</b><small>${esc(why)}${esc(requirement)}</small><span>${esc(status.label)}</span></div>
-          ${index === 0 && status.state === 'verified' ? '<i class="replacement-best">BEST OWNED</i>' : ''}
-        </div>`;
-      }).join('')}</div>
-    </div>`;
+    return `<div class="replacement-row"><div class="replacement-missing"><span>Instead of</span><b>${esc(missingName)}</b></div><div class="replacement-options">${entry.candidates.map((candidate, index) => {
+      const status = candidate.status || { state:'unknown', label:'Ownership unknown' };
+      const target = enrichVariantTeam(candidate.targetTeam);
+      const previewId = registerLineupPreview(team, target, `Replace ${missingName} with ${candidate.name}`);
+      const requirement = Number(candidate.minConstellation || 0) > 0 ? ` · C${candidate.minConstellation}+ required` : '';
+      return `<button type="button" class="replacement-option replacement-option--${esc(status.state)}" data-lineup-preview="${esc(previewId)}" title="Preview the complete team after this swap">
+        ${imageTile(candidate.name, 'Character', 'character', 'replacement-option__icon')}
+        <span class="replacement-option__copy"><b>${esc(candidate.name)}</b><small>Exact one-slot source swap${esc(requirement)}</small><span>${esc(status.label)} · click to preview team</span></span>
+        ${index === 0 && status.state === 'verified' ? '<i class="replacement-best">BEST OWNED</i>' : ''}
+      </button>`;
+    }).join('')}</div></div>`;
   }).join('');
 
-  return `<div class="team-replacements">
-    <div class="team-replacements__head"><b>Suggested replacements</b><span>Source-backed swaps · owned characters first · the original team’s DPS/tier does not carry over after a replacement.</span></div>
-    ${rows}
-  </div>`;
+  const alternatives = alternativeLineups(team);
+  if (!rows && !alternatives) return '';
+  return `<div class="team-replacements"><div class="team-replacements__head"><b>Roster alternatives</b><span>“Instead of” now means an exact one-slot source swap. Full-team alternatives are kept separate so role changes are never hidden.</span></div>${rows}${alternatives}<div class="lineup-preview" hidden></div></div>`;
 }
 
 function metricForTeam(team, personalRank = null) {
   if (Number.isFinite(Number(team.dps))) return `<div class="build-dps"><strong>${fmt.format(Number(team.dps))}</strong><span>PUBLISHED DPS</span></div>`;
+  if (team.isVariant) return `<div class="build-dps build-dps--tier"><strong>Guide variant</strong><span>${personalRank ? `YOUR #${personalRank} · ` : ''}NO INVENTED DPS</span></div>`;
   const tier = team.tier && team.tier !== 'Guide' ? `Tier ${team.tier}` : 'Guide ranked';
   return `<div class="build-dps build-dps--tier"><strong>${esc(tier)}</strong><span>${personalRank ? `YOUR #${personalRank} · ` : ''}SOURCE #${esc(team.rank)}</span></div>`;
 }
@@ -370,13 +444,13 @@ function teamCard(team, { personalRank = null, closest = false } = {}) {
       <div class="build-team__title"><div><h3>${esc(team.name)}</h3><p>${esc(team.note || '')}</p></div>${metricForTeam(team, personalRank)}</div>
       <div class="build-units">${(team.members || []).map(memberCard).join('')}</div>
       ${meter}${blockers}${replacementSuggestions(team, account)}
-      <div class="build-team__foot"><span>${team.tier ? `Tier ${esc(team.tier)}` : Number.isFinite(Number(team.relative)) ? `${esc(team.relative)}% of source #1` : 'Source-ranked'}</span><span>Source rank #${esc(team.rank)}</span><span class="account-fit ${account.fullyVerified ? 'account-fit--yes' : ''}">${esc(accountLabel)}</span></div>
+      <div class="build-team__foot"><span>${team.isVariant ? 'Guide-backed variant' : team.tier ? `Tier ${esc(team.tier)}` : Number.isFinite(Number(team.relative)) ? `${esc(team.relative)}% of source #1` : 'Source-ranked'}</span>${team.isVariant ? '' : `<span>Source rank #${esc(team.rank)}</span>`}<span class="account-fit ${account.fullyVerified ? 'account-fit--yes' : ''}">${esc(accountLabel)}</span></div>
     </div>
   </article>`;
 }
 
 function reactions() {
-  return [...new Set((character.teams || []).map((team) => team.reaction).filter(Boolean))];
+  return [...new Set([...(character.teams || []).map((team) => team.reaction), ...(character.variants || []).map((variant) => variant.reaction)].filter(Boolean))];
 }
 
 function filterTeams(list, reaction) { return reaction === 'all' ? list : list.filter((team) => team.reaction === reaction); }
@@ -387,14 +461,14 @@ function filterButtons(container, selected, includeBuildable = false) {
 }
 
 function renderOptimizer() {
-  const all = filterTeams(character.teams || [], optimizerReaction);
+  const all = filterTeams(optimizerTeamPool(), optimizerReaction);
   const ranked = rankBuildableTeams(all, ownership, overrides);
   filterButtons($('#optimizer-filters'), optimizerReaction, false);
   $('#optimizer-filters').querySelectorAll('[data-filter-value]').forEach((button) => button.addEventListener('click', () => { optimizerReaction = button.dataset.filterValue; renderOptimizer(); hydrateIcons($('#my-teams')); hydrateIcons($('#closest-teams')); }));
 
   $('#my-teams').innerHTML = ranked.length
     ? ranked.slice(0, 6).map((entry, index) => teamCard(entry.team, { personalRank:index + 1 })).join('')
-    : `<div class="build-empty"><b>No team is fully verified yet.</b><span>That does not necessarily mean you cannot build one. Open Roster corrections below and fill characters missing from your imported wish history.</span></div>`;
+    : `<div class="build-empty"><b>No source or guide team is fully verified yet.</b><span>Roster history can be incomplete. Check the closest teams below or open Roster corrections to confirm older/free characters.</span></div>`;
 
   const closest = rankClosestTeams(all, ownership, overrides, 4);
   $('#closest-teams').innerHTML = closest.length ? closest.map((entry) => teamCard(entry.team, { closest:true })).join('') : `<div class="build-empty"><b>No locked teams to show.</b><span>${ranked.length ? 'Every source-ranked team in this filter is roster verified.' : 'No team data is available for this character/filter.'}</span></div>`;
@@ -474,6 +548,7 @@ function renderMethod() {
 }
 
 function renderPersonalLayers() {
+  resetLineupPreviews();
   renderHero();
   renderAccountInsight();
   renderOptimizer();
@@ -485,6 +560,7 @@ function renderPersonalLayers() {
 
 function renderAll() {
   if (!character) return;
+  resetLineupPreviews();
   ownership = analyzeGenshinOwnership(getData());
   overrides = getRosterOverrides(getActiveProfile().id);
   renderProfilePicker();
@@ -545,6 +621,26 @@ $('#character-grid').addEventListener('click', (event) => {
   openCharacter(getCatalogCharacter(card.dataset.characterId));
 });
 $('#back-to-roster').addEventListener('click', () => openRoster());
+
+document.addEventListener('click', (event) => {
+  const close = event.target.closest('[data-close-lineup-preview]');
+  if (close) {
+    const preview = close.closest('.lineup-preview');
+    if (preview) { preview.hidden = true; preview.innerHTML = ''; }
+    return;
+  }
+  const trigger = event.target.closest('[data-lineup-preview]');
+  if (!trigger) return;
+  const data = lineupPreviewRegistry.get(trigger.dataset.lineupPreview);
+  if (!data) return;
+  const card = trigger.closest('.build-team');
+  const preview = card?.querySelector('.lineup-preview');
+  if (!preview) return;
+  preview.innerHTML = lineupPreviewMarkup(data.baseTeam, data.targetTeam, data.context);
+  preview.hidden = false;
+  hydrateIcons(preview);
+  preview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+});
 
 window.addEventListener('popstate', () => {
   const id = new URLSearchParams(location.search).get('character');

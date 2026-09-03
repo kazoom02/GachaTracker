@@ -222,17 +222,35 @@ function renderRosterHome() {
     const title = owned
       ? `${entry.name} · ${status.label}`
       : `${entry.name} · ${manualUnowned ? 'marked not owned' : 'not confirmed on this profile'} · click to view the guide`;
-    return `<button class="roster-character-card ${owned ? 'roster-character-card--owned' : 'roster-character-card--locked'}" type="button" data-character-id="${esc(entry.id)}" title="${esc(title)}">
-      <span class="roster-character__portrait">
-        ${imageTile(entry.name, 'Character', 'character', 'roster-character__icon')}
-        ${locked ? '<span class="roster-character__lock" aria-hidden="true">🔒</span>' : '<span class="roster-character__owned" aria-hidden="true">✓</span>'}
-      </span>
-      <span class="roster-character__copy">
-        <b>${esc(entry.name)}</b>
-        <small class="roster-character__rarity">${entry.rarity === 5 ? '★★★★★' : '★★★★'}</small>
-        <small class="roster-character__status">${esc(ownershipLabel)}</small>
-      </span>
-    </button>`;
+    const unlockOptions = locked
+      ? `<label class="roster-character__unlock">
+          <span aria-hidden="true">🔓</span>
+          <select data-roster-quick-set="${esc(entry.name)}" aria-label="Unlock ${esc(entry.name)} and set constellation">
+            <option value="">Unlock…</option>
+            <option value="0">Owned · C0</option>
+            <option value="1">Owned · C1</option>
+            <option value="2">Owned · C2</option>
+            <option value="3">Owned · C3</option>
+            <option value="4">Owned · C4</option>
+            <option value="5">Owned · C5</option>
+            <option value="6">Owned · C6</option>
+          </select>
+        </label>`
+      : '';
+    return `<article class="roster-character-card ${owned ? 'roster-character-card--owned' : 'roster-character-card--locked'}" title="${esc(title)}">
+      <button class="roster-character__open" type="button" data-character-id="${esc(entry.id)}" aria-label="Open ${esc(entry.name)} build guide">
+        <span class="roster-character__portrait">
+          ${imageTile(entry.name, 'Character', 'character', 'roster-character__icon')}
+          ${locked ? '<span class="roster-character__lock" aria-hidden="true">🔒</span>' : '<span class="roster-character__owned" aria-hidden="true">✓</span>'}
+        </span>
+        <span class="roster-character__copy">
+          <b>${esc(entry.name)}</b>
+          <small class="roster-character__rarity">${entry.rarity === 5 ? '★★★★★' : '★★★★'}</small>
+          <small class="roster-character__status">${esc(ownershipLabel)}</small>
+        </span>
+      </button>
+      ${unlockOptions}
+    </article>`;
   }).join('') : `<div class="build-empty roster-empty"><b>No characters match.</b><span>Try another search or roster filter.</span></div>`;
 
   hydrateIcons($('#character-grid'));
@@ -660,6 +678,15 @@ $('#roster-filters').querySelectorAll('[data-roster-filter]').forEach((button) =
   rosterViewFilter = button.dataset.rosterFilter;
   renderRosterHome();
 }));
+$('#character-grid').addEventListener('change', (event) => {
+  const select = event.target.closest('[data-roster-quick-set]');
+  if (!select || select.value === '') return;
+  const profileId = getActiveProfile().id;
+  setRosterOverride(profileId, select.dataset.rosterQuickSet, select.value);
+  overrides = getRosterOverrides(profileId);
+  renderRosterHome();
+});
+
 $('#character-grid').addEventListener('click', (event) => {
   const card = event.target.closest('[data-character-id]');
   if (!card) return;

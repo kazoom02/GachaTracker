@@ -357,11 +357,10 @@
   position: relative;
   display: grid;
   min-width: 0;
-  gap: 10px;
+  gap: 8px;
   padding: 10px;
   overflow: hidden;
   color: var(--ink);
-  cursor: pointer;
   text-align: left;
   background: rgba(18,22,31,.76);
   border: 1px solid var(--line);
@@ -372,6 +371,22 @@
   transform: translateY(-2px);
   background: rgba(24,29,40,.94);
   border-color: rgba(var(--accent-rgb),.36);
+}
+.roster-character__open {
+  display: grid;
+  min-width: 0;
+  gap: 10px;
+  padding: 0;
+  color: inherit;
+  cursor: pointer;
+  text-align: left;
+  background: transparent;
+  border: 0;
+}
+.roster-character__open:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+  border-radius: 12px;
 }
 .roster-character-card--locked {
   color: #8c929e;
@@ -905,4 +920,42 @@
   }
   .optimizer-subhead span,
   .theorycraft-explain__head span { text-align: left; }
+}
+
+
+/* Quick manual ownership controls on the roster grid */
+.roster-character__unlock {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 5px;
+  align-items: center;
+  margin-top: 1px;
+  padding: 5px 6px;
+  color: var(--accent);
+  background: rgba(var(--accent-rgb), .07);
+  border: 1px solid rgba(var(--accent-rgb), .18);
+  border-radius: 9px;
+}
+.roster-character__unlock > span {
+  font-size: 10px;
+  text-align: center;
+}
+.roster-character__unlock select {
+  min-width: 0;
+  width: 100%;
+  padding: 4px 20px 4px 5px;
+  color: var(--ink-dim);
+  cursor: pointer;
+  background: #0e1219;
+  border: 0;
+  border-radius: 6px;
+  font: 600 9px 'Space Grotesk', sans-serif;
+}
+.roster-character__unlock select:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: 1px;
+}
+.roster-character-card--locked:hover .roster-character__unlock {
+  border-color: rgba(var(--accent-rgb), .35);
+  background: rgba(var(--accent-rgb), .1);
 }

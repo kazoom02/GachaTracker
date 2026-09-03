@@ -4,13 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="theme-color" content="#080a0f" />
-  <title>Character Builds — Convene</title>
+  <title>Genshin Character Builds — Convene</title>
   <link rel="icon" href="favicon.svg?v=20260903" type="image/svg+xml" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css?v=20260903a" />
-  <link rel="stylesheet" href="builds.css?v=20260903a" />
+  <link rel="stylesheet" href="builds.css?v=20260903b" />
 </head>
 <body data-game="genshin" class="builds-page">
   <div class="stars" aria-hidden="true"></div>
@@ -18,74 +18,84 @@
   <header class="topbar builds-topbar">
     <a class="brand brand--link" href="index.html" aria-label="Back to Convene pull tracker">
       <span class="brand__mark" aria-hidden="true"><i></i></span>
-      <div><h1>Convene</h1><p>Build intelligence</p></div>
+      <div><h1>Convene</h1><p>Genshin build intelligence</p></div>
     </a>
-
     <nav class="build-nav" aria-label="Convene sections">
       <a href="index.html">Pull tracker</a>
       <a class="build-nav--on" href="builds.html">Character builds</a>
     </nav>
-
-    <label class="build-profile" for="build-profile-select">
-      <small>Account profile</small>
-      <select id="build-profile-select" aria-label="Account profile"></select>
-    </label>
+    <label class="build-profile" for="build-profile-select"><small>Account profile</small><select id="build-profile-select" aria-label="Account profile"></select></label>
   </header>
 
   <main class="build-main">
     <section class="build-hero">
-      <div class="build-portrait" id="character-portrait"><span>O</span></div>
+      <div class="build-portrait" id="character-portrait"><span>?</span></div>
       <div class="build-hero__copy">
         <div class="build-hero__topline">
-          <p class="eyebrow"><span></span> Genshin Impact · Versioned theorycraft</p>
-          <label class="character-picker">Character
-            <select id="character-select"></select>
-          </label>
+          <p class="eyebrow"><span></span> Genshin Impact · current roster</p>
+          <div class="character-picker-wrap">
+            <label class="character-search">Find character<input id="character-search" type="search" autocomplete="off" placeholder="Search 125 characters…" /></label>
+            <label class="character-picker">Character<select id="character-select"></select></label>
+          </div>
         </div>
-        <h2 id="character-name">Odette</h2>
+        <h2 id="character-name">Character</h2>
         <p id="character-meta" class="build-meta"></p>
         <strong id="character-role"></strong>
         <p id="character-summary" class="build-summary"></p>
-        <div class="build-chips"><span id="updated"></span><span id="ownership-self"></span></div>
+        <div class="build-chips"><span id="updated"></span><span id="source-mode"></span><span id="ownership-self"></span></div>
       </div>
       <aside class="best-snapshot">
         <p>Quick recommendation</p>
-        <div><small>Best published team</small><b id="quick-team"></b><strong id="quick-team-dps"></strong></div>
+        <div><small>Top team</small><b id="quick-team"></b><strong id="quick-team-dps"></strong></div>
         <div><small>Best weapon</small><b id="quick-weapon"></b></div>
         <div><small>Best artifact</small><b id="quick-artifact"></b></div>
       </aside>
     </section>
 
+    <div id="guide-status" class="guide-status" hidden></div>
+
     <section class="account-insight" id="account-insight">
-      <div><p class="eyebrow"><span></span> Your imported history</p><h3 id="account-title">Account-aware recommendations</h3><p id="account-copy"></p></div>
+      <div><p class="eyebrow"><span></span> Your account</p><h3 id="account-title">Account-aware recommendations</h3><p id="account-copy"></p></div>
       <div class="account-stats"><span><b id="owned-count">0</b> characters seen</span><span><b id="typed-pulls">0</b> typed wish records</span></div>
     </section>
 
-    <section class="build-section">
+    <section class="optimizer build-section">
       <header class="build-section__head">
-        <div><p class="eyebrow"><span></span> Damage ranking</p><h2>Best quantified teams</h2><p>Comparable published calculations first; your imported history is layered on top without changing the source DPS.</p></div>
-        <div class="team-filters" aria-label="Team filters">
-          <button class="team-filter team-filter--on" data-reaction="all">All</button>
-          <button class="team-filter" data-reaction="Stellar-Conduct">Conduct</button>
-          <button class="team-filter" data-reaction="Stellar-Swirl">Swirl</button>
-          <button class="team-filter team-filter--account" id="history-filter">Verified by my history</button>
+        <div><p class="eyebrow"><span></span> Account optimizer</p><h2>Best teams you can actually build</h2><p id="optimizer-copy">Convene checks the active profile, required constellations, and your roster corrections, then preserves the source team's original strength order.</p></div>
+        <div id="optimizer-filters" class="team-filters" aria-label="Personalized team filters"></div>
+      </header>
+      <div id="my-teams" class="personal-teams"></div>
+      <div class="closest-wrap"><h3>Closest high-ranked teams</h3><p>Strong lineups that are currently blocked by the fewest unverified roster requirements.</p><div id="closest-teams" class="closest-teams"></div></div>
+
+      <details class="roster-panel">
+        <summary><span><b>Roster corrections</b><small>Fix characters missing from old/free/incomplete wish history.</small></span><i>⌄</i></summary>
+        <div class="roster-panel__body">
+          <div class="roster-note"><p><b>Auto</b> uses imported wish history. Choose Not owned or C0–C6 only when you know the account state.</p><button id="roster-reset" class="btn btn--line" type="button">Reset this profile’s corrections</button></div>
+          <div id="roster-editor" class="roster-editor"></div>
         </div>
+      </details>
+    </section>
+
+    <section class="build-section" id="theory-section">
+      <header class="build-section__head">
+        <div><p class="eyebrow"><span></span> Unrestricted ranking</p><h2 id="teams-heading">Best teams</h2><p id="teams-copy">Source-ranked teams are shown independently of your account. Numeric DPS appears only where a compatible published calculation exists.</p></div>
+        <div id="reaction-filters" class="team-filters" aria-label="Team filters"></div>
       </header>
       <div id="teams" class="build-teams"></div>
     </section>
 
-    <section class="build-section">
-      <header class="build-section__head"><div><p class="eyebrow"><span></span> Theorycraft options</p><h2>Other recommended teams</h2><p>Current guide-backed variants kept separate when equivalent DPS calculations are unavailable.</p></div></header>
+    <section class="build-section" id="variants-section">
+      <header class="build-section__head"><div><p class="eyebrow"><span></span> Theorycraft options</p><h2>Other recommended teams</h2><p>Additional guide-backed variants kept separate when equivalent ranking data is unavailable.</p></div></header>
       <div id="variants" class="build-variants"></div>
     </section>
 
     <section class="build-grid build-section">
       <div>
-        <header class="build-section__head"><div><p class="eyebrow"><span></span> Equipment</p><h2>Weapon ranking</h2><p>Team-DPS values are normalized around R5 Finale of the Deep = 100 where the cited sheet provides a comparison.</p></div></header>
+        <header class="build-section__head"><div><p class="eyebrow"><span></span> Equipment</p><h2>Weapon ranking</h2><p id="weapons-copy">Current source ordering. Imported wish history marks gacha weapons Convene has actually seen.</p></div></header>
         <div id="weapons" class="build-list"></div>
       </div>
       <div>
-        <header class="build-section__head"><div><p class="eyebrow"><span></span> Equipment</p><h2>Artifact ranking</h2><p>Overall team contribution takes priority over Odette-only damage.</p></div></header>
+        <header class="build-section__head"><div><p class="eyebrow"><span></span> Equipment</p><h2>Artifact ranking</h2><p id="artifacts-copy">Current recommended sets and alternatives.</p></div></header>
         <div id="artifacts" class="artifact-list"></div>
         <div id="stats" class="build-stats"></div>
       </div>
@@ -99,10 +109,10 @@
 
   <footer class="foot build-foot">
     <div class="foot__brand"><span class="brand__mark brand__mark--small" aria-hidden="true"><i></i></span><b>Convene Builds</b></div>
-    <p>Source-backed build snapshots with account-aware ownership hints.</p>
-    <p class="muted">“Not seen” never means definitely unowned — imported wish history can be incomplete.</p>
+    <p>Genshin-only source-backed builds with account-aware team optimization.</p>
+    <p class="muted">Generic guide rankings do not receive invented DPS. “Unknown” ownership does not mean unowned.</p>
   </footer>
 
-  <script type="module" src="js/builds.js?v=20260903a"></script>
+  <script type="module" src="js/builds.js?v=20260903b"></script>
 </body>
 </html>

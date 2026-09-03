@@ -171,3 +171,64 @@
   .build-list-score { grid-column: 2/4; text-align: left; }
   .team-filter { flex: 1 1 auto; }
 }
+
+/* Full-roster live guide + account optimizer */
+.character-picker-wrap { display: flex; align-items: end; gap: 8px; }
+.character-search { display: grid; gap: 3px; min-width: 190px; color: var(--muted); font: 700 8px 'Inter',sans-serif; letter-spacing: .08em; text-transform: uppercase; }
+.character-search input { width: 100%; padding: 8px 10px; color: var(--ink-dim); background: rgba(255,255,255,.035); border: 1px solid var(--line); border-radius: 10px; font: 600 11px 'Space Grotesk',sans-serif; }
+.character-search input::placeholder { color: var(--muted); }
+.guide-status { margin: -5px 0 18px; padding: 10px 13px; color: var(--ink-dim); background: rgba(255,255,255,.035); border: 1px solid var(--line); border-radius: 11px; font-size: 9px; }
+.guide-status--good { color: var(--good); border-color: rgba(99,216,164,.22); background: rgba(99,216,164,.055); }
+.guide-status--warn { color: var(--warm); border-color: rgba(244,200,106,.25); background: rgba(244,200,106,.055); }
+.guide-status--error { color: var(--hot); border-color: rgba(255,127,142,.25); background: rgba(255,127,142,.055); }
+.guide-status--loading { color: var(--accent); }
+.history-chip--unknown { color: var(--muted)!important; }
+.history-chip--unowned { color: var(--hot)!important; border-color: rgba(255,127,142,.22)!important; background: rgba(255,127,142,.06)!important; }
+.build-unit--unknown { opacity: .78; }
+.build-unit--unowned { border-color: rgba(255,127,142,.23); background: rgba(255,127,142,.025); }
+.history-dot--unknown { background: var(--muted); }
+.history-dot--unowned { background: var(--hot); box-shadow: 0 0 8px rgba(255,127,142,.35); }
+.optimizer { position: relative; }
+.optimizer::before { content: ''; position: absolute; inset: 15px -12px; z-index: -1; pointer-events: none; background: linear-gradient(145deg,rgba(99,216,164,.035),transparent 62%); border: 1px solid rgba(99,216,164,.1); border-radius: 24px; }
+.personal-teams { display: grid; gap: 11px; }
+.personal-teams .build-team__rank b { font-size: 15px; }
+.closest-wrap { margin-top: 25px; padding-top: 20px; border-top: 1px solid var(--line); }
+.closest-wrap > h3 { margin-bottom: 4px; font-size: 16px; }
+.closest-wrap > p { margin-bottom: 12px; color: var(--muted); font-size: 9px; }
+.closest-teams { display: grid; gap: 9px; }
+.closest-teams .build-team { opacity: .9; }
+.team-blockers { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.blocker { padding: 4px 7px; color: var(--muted); background: rgba(255,255,255,.035); border: 1px solid var(--line); border-radius: 999px; font-size: 7px; }
+.blocker--short { color: var(--warm); border-color: rgba(244,200,106,.2); }
+.blocker--unowned { color: var(--hot); border-color: rgba(255,127,142,.2); }
+.build-dps--tier strong { color: var(--accent); font-size: 15px; }
+.roster-panel { margin-top: 22px; overflow: hidden; background: rgba(255,255,255,.022); border: 1px solid var(--line); border-radius: 16px; }
+.roster-panel summary { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 14px 16px; cursor: pointer; list-style: none; }
+.roster-panel summary::-webkit-details-marker { display:none; }
+.roster-panel summary span { display: grid; gap: 2px; }
+.roster-panel summary b { font: 600 12px 'Space Grotesk',sans-serif; }
+.roster-panel summary small { color: var(--muted); font-size: 8px; }
+.roster-panel summary i { color: var(--muted); font-style: normal; transition: transform 150ms ease; }
+.roster-panel[open] summary i { transform: rotate(180deg); }
+.roster-panel__body { padding: 0 16px 16px; border-top: 1px solid var(--line); }
+.roster-note { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 0; }
+.roster-note p { margin: 0; color: var(--muted); font-size: 8px; line-height: 1.5; }
+.roster-editor { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 7px; }
+.roster-row { display: grid; grid-template-columns: minmax(0,1fr) minmax(112px,.8fr); gap: 8px; align-items: center; padding: 7px; background: rgba(0,0,0,.12); border: 1px solid var(--line); border-radius: 11px; }
+.roster-row > span { display: flex; min-width: 0; align-items: center; gap: 7px; }
+.roster-row .build-icon { width: 34px; height: 34px; flex-basis: 34px; border-radius: 9px; }
+.roster-row b { overflow: hidden; font: 600 9px 'Space Grotesk',sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+.roster-row select { min-width: 0; padding: 7px 8px; color: var(--ink-dim); cursor: pointer; background: rgba(255,255,255,.035); border: 1px solid var(--line); border-radius: 8px; font-size: 8px; }
+#variants-section[hidden], .build-stats[hidden] { display:none; }
+
+@media (max-width: 1120px) {
+  .character-picker-wrap { width: 100%; }
+  .character-search,.character-picker { flex:1; }
+  .roster-editor { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 760px) {
+  .character-picker-wrap { flex-direction: column; align-items: stretch; }
+  .character-search,.character-picker { width:100%; }
+  .roster-editor { grid-template-columns: 1fr; }
+  .roster-note { align-items:flex-start; flex-direction:column; }
+}

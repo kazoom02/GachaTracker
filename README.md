@@ -125,7 +125,7 @@ JSON and Google Drive backup include every profile.
 
 Portraits load **automatically from the game wikis** — no setup, no downloads. Each pull's
 name is converted to its Fandom image URL client-side (Genshin →
-`static.wikia.nocookie.net/genshin-impact/…`, WuWa → `…/wutheringwaves/…`). Anything the
+`static.wikia.nocookie.net/gensin-impact/…`, WuWa → `…/wutheringwaves/…`). Anything the
 wiki doesn't have yet shows a rarity-colored monogram tile instead, so nothing breaks.
 
 - **Want your own art instead?** Drop files into `public/icons/genshin/` or
@@ -143,26 +143,39 @@ saved as a visible `gacha-tracker-data.json` file in the user's Drive. See
 
 ## Character builds
 
-Open **Character builds** from the tracker header (or visit `builds.html?character=odette`) for
-source-backed team, weapon, artifact, and stat recommendations. Build data is kept separately in
-`public/js/build-data.js`, so additional characters can be added without rebuilding the page UI.
+Open **Character builds** from the tracker header. The Builds area is currently **Genshin-only** and
+contains the full 125-character Version 7.0 combat roster in `public/js/build-catalog.js`.
 
-The Builds page is **account-aware**. It reads the currently selected Convene profile and scans its
-saved Genshin wish records:
+Most characters use a small server-side normalizer (`/api/build-guide`) so Convene can refresh current
+weapon/artifact/stat ordering from Genshin.gg and ranked team guides from Genshin-Builds.com without
+hard-coding 125 pages that immediately go stale. Responses are cached, and the browser keeps a recent
+local copy so a temporary source outage does not erase a previously loaded guide. The six pre-Cryo
+Traveler elements have explicit guide-backed team fallbacks because the current Team Lab does not have
+dedicated pages for them.
 
-- Characters found in imported wish history are marked as seen, including the **minimum constellation**
-  witnessed by the saved copies (one copy = C0+, two = C1+, and so on).
-- Quantified team cards can be filtered to lineups whose listed constellation requirements are fully
-  verified by the imported history.
-- Gacha weapons found in history are marked too. Craftable, event, quest, and otherwise non-gacha
-  equipment may still show as unknown.
-- A missing character is always shown as **Not seen in imported history / Unknown**, never definitely
-  unowned. HoYoverse history can be incomplete and some characters are obtained outside wishes.
+**Odette remains a curated exception:** her compatible published DPS calculations stay in
+`public/js/build-data.js`, so her numerical rankings are not replaced by a generic qualitative tier. For
+characters without a compatible simulation, Convene preserves the source team order/tier and deliberately
+does **not** invent DPS numbers.
 
-The numerical Odette rankings are a versioned 7.0 theorycraft snapshot. Comparable DPS values are
-kept separate from guide-backed team variants that do not have equivalent calculations, preventing
-made-up rankings from being presented as measured results. Source links and assumptions are shown
-directly on the page.
+### Account optimizer
+
+The page reads the active Convene profile and ranks **Best teams you can actually build** separately from
+the unrestricted source ranking:
+
+- Characters found in imported wish history are marked as seen, including the minimum constellation
+  witnessed by saved copies (one copy = C0+, two = C1+, and so on).
+- The optimizer only promotes a lineup when every listed member/constellation is verified. Locked high-rank
+  teams show their exact blockers.
+- **Roster corrections** are saved per profile. Use Auto, Not owned, or C0-C6 to fill gaps caused by old,
+  free, or incomplete wish history. Traveler forms are treated as free C0 by default because Traveler never
+  appears in wish history; higher Traveler constellations still need a correction when required.
+- Gacha weapons found in history are marked too. Craftable, event, quest, and other non-gacha equipment
+  may remain unknown.
+- Missing wish-history records are always **Unknown**, never automatically “not owned.”
+
+The live build endpoint constructs its own allow-listed source URLs; it does not accept arbitrary URLs from
+the browser. This keeps the serverless fetcher narrowly scoped to the two build-guide sites.
 
 ### Enable Google Drive (optional)
 1. In [Google Cloud Console](https://console.cloud.google.com/): create a project.

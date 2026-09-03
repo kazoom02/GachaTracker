@@ -17,3 +17,8 @@
   from = "/api/wuwa"
   to = "/.netlify/functions/wuwa"
   status = 200
+
+[[redirects]]
+  from = "/api/build-guide"
+  to = "/.netlify/functions/build-guide"
+  status = 200

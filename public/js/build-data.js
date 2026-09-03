@@ -76,7 +76,7 @@ export const BUILD_CHARACTERS = [
       },
       {
         rank: 4,
-        name: 'Wriothesley + Lanyan',
+        name: 'Wriothesley + Lan Yan',
         reaction: 'Stellar-Conduct',
         dps: 155234,
         relative: 81.9,
@@ -86,7 +86,7 @@ export const BUILD_CHARACTERS = [
           { name: 'Wriothesley', role: 'Main DPS', minConstellation: 1 },
           { name: 'Yae Miko', role: 'Electro sub-DPS', minConstellation: 1 },
           { name: 'Odette', role: 'Stellar support' },
-          { name: 'Lanyan', role: 'Shield', minConstellation: 2 },
+          { name: 'Lan Yan', role: 'Shield', minConstellation: 2 },
         ],
       },
       {
@@ -182,6 +182,10 @@ export const BUILD_CHARACTERS = [
   },
 ];
 
+export function findBuildCharacter(id) {
+  return BUILD_CHARACTERS.find((character) => character.id === id) || null;
+}
+
 export function getBuildCharacter(id) {
-  return BUILD_CHARACTERS.find((character) => character.id === id) || BUILD_CHARACTERS[0];
+  return findBuildCharacter(id) || BUILD_CHARACTERS[0];
 }

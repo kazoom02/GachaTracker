@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#080a0f" />
+  <title>Character Builds — Convene</title>
+  <link rel="icon" href="favicon.svg?v=20260903" type="image/svg+xml" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=20260903a" />
+  <link rel="stylesheet" href="builds.css?v=20260903a" />
+</head>
+<body data-game="genshin" class="builds-page">
+  <div class="stars" aria-hidden="true"></div>
+
+  <header class="topbar builds-topbar">
+    <a class="brand brand--link" href="index.html" aria-label="Back to Convene pull tracker">
+      <span class="brand__mark" aria-hidden="true"><i></i></span>
+      <div><h1>Convene</h1><p>Build intelligence</p></div>
+    </a>
+
+    <nav class="build-nav" aria-label="Convene sections">
+      <a href="index.html">Pull tracker</a>
+      <a class="build-nav--on" href="builds.html">Character builds</a>
+    </nav>
+
+    <label class="build-profile" for="build-profile-select">
+      <small>Account profile</small>
+      <select id="build-profile-select" aria-label="Account profile"></select>
+    </label>
+  </header>
+
+  <main class="build-main">
+    <section class="build-hero">
+      <div class="build-portrait" id="character-portrait"><span>O</span></div>
+      <div class="build-hero__copy">
+        <div class="build-hero__topline">
+          <p class="eyebrow"><span></span> Genshin Impact · Versioned theorycraft</p>
+          <label class="character-picker">Character
+            <select id="character-select"></select>
+          </label>
+        </div>
+        <h2 id="character-name">Odette</h2>
+        <p id="character-meta" class="build-meta"></p>
+        <strong id="character-role"></strong>
+        <p id="character-summary" class="build-summary"></p>
+        <div class="build-chips"><span id="updated"></span><span id="ownership-self"></span></div>
+      </div>
+      <aside class="best-snapshot">
+        <p>Quick recommendation</p>
+        <div><small>Best published team</small><b id="quick-team"></b><strong id="quick-team-dps"></strong></div>
+        <div><small>Best weapon</small><b id="quick-weapon"></b></div>
+        <div><small>Best artifact</small><b id="quick-artifact"></b></div>
+      </aside>
+    </section>
+
+    <section class="account-insight" id="account-insight">
+      <div><p class="eyebrow"><span></span> Your imported history</p><h3 id="account-title">Account-aware recommendations</h3><p id="account-copy"></p></div>
+      <div class="account-stats"><span><b id="owned-count">0</b> characters seen</span><span><b id="typed-pulls">0</b> typed wish records</span></div>
+    </section>
+
+    <section class="build-section">
+      <header class="build-section__head">
+        <div><p class="eyebrow"><span></span> Damage ranking</p><h2>Best quantified teams</h2><p>Comparable published calculations first; your imported history is layered on top without changing the source DPS.</p></div>
+        <div class="team-filters" aria-label="Team filters">
+          <button class="team-filter team-filter--on" data-reaction="all">All</button>
+          <button class="team-filter" data-reaction="Stellar-Conduct">Conduct</button>
+          <button class="team-filter" data-reaction="Stellar-Swirl">Swirl</button>
+          <button class="team-filter team-filter--account" id="history-filter">Verified by my history</button>
+        </div>
+      </header>
+      <div id="teams" class="build-teams"></div>
+    </section>
+
+    <section class="build-section">
+      <header class="build-section__head"><div><p class="eyebrow"><span></span> Theorycraft options</p><h2>Other recommended teams</h2><p>Current guide-backed variants kept separate when equivalent DPS calculations are unavailable.</p></div></header>
+      <div id="variants" class="build-variants"></div>
+    </section>
+
+    <section class="build-grid build-section">
+      <div>
+        <header class="build-section__head"><div><p class="eyebrow"><span></span> Equipment</p><h2>Weapon ranking</h2><p>Team-DPS values are normalized around R5 Finale of the Deep = 100 where the cited sheet provides a comparison.</p></div></header>
+        <div id="weapons" class="build-list"></div>
+      </div>
+      <div>
+        <header class="build-section__head"><div><p class="eyebrow"><span></span> Equipment</p><h2>Artifact ranking</h2><p>Overall team contribution takes priority over Odette-only damage.</p></div></header>
+        <div id="artifacts" class="artifact-list"></div>
+        <div id="stats" class="build-stats"></div>
+      </div>
+    </section>
+
+    <section class="build-grid build-method build-section">
+      <div><p class="eyebrow"><span></span> Method</p><h2>Assumptions & limitations</h2><ul id="assumptions"></ul></div>
+      <div><p class="eyebrow"><span></span> Evidence</p><h2>Sources used</h2><div id="sources" class="build-sources"></div></div>
+    </section>
+  </main>
+
+  <footer class="foot build-foot">
+    <div class="foot__brand"><span class="brand__mark brand__mark--small" aria-hidden="true"><i></i></span><b>Convene Builds</b></div>
+    <p>Source-backed build snapshots with account-aware ownership hints.</p>
+    <p class="muted">“Not seen” never means definitely unowned — imported wish history can be incomplete.</p>
+  </footer>
+
+  <script type="module" src="js/builds.js?v=20260903a"></script>
+</body>
+</html>

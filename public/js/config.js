@@ -22,7 +22,7 @@ export const DRIVE_FILENAME = 'gacha-tracker-data.json';
 //   { base: '<folder or URL>' }     → local folder or a remote host (e.g. GitHub raw)
 // Reorder or delete entries to taste (e.g. put your local folder first, or drop the wiki).
 export const ICON_SOURCES = {
-  genshin: [{ wiki: 'gensin-impact' }, { base: 'icons/genshin' }],
+  genshin: [{ wiki: 'genshin-impact' }, { base: 'icons/genshin' }],
   wuwa: [{ wiki: 'wutheringwaves' }, { base: 'icons/wuwa' }],
 };
 

@@ -1,5 +1,5 @@
 // js/main.js
-import { GAMES, GENSHIN_BANNERS, wuwaBanner, wuwaBannersFor, iconCandidates, setManifest, LINK_GUIDES } from './config.js?v=20260824f';
+import { GAMES, GENSHIN_BANNERS, wuwaBanner, wuwaBannersFor, iconCandidates, setManifest, LINK_GUIDES } from './config.js?v=20260903a';
 import {
   analyze,
   clearAll,

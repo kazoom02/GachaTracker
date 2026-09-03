@@ -141,6 +141,29 @@ Note: Drive is used only for **backup/export-import**, not for images. Backups a
 saved as a visible `gacha-tracker-data.json` file in the user's Drive. See
 `public/icons/README.txt` for the full filename rules.
 
+## Character builds
+
+Open **Character builds** from the tracker header (or visit `builds.html?character=odette`) for
+source-backed team, weapon, artifact, and stat recommendations. Build data is kept separately in
+`public/js/build-data.js`, so additional characters can be added without rebuilding the page UI.
+
+The Builds page is **account-aware**. It reads the currently selected Convene profile and scans its
+saved Genshin wish records:
+
+- Characters found in imported wish history are marked as seen, including the **minimum constellation**
+  witnessed by the saved copies (one copy = C0+, two = C1+, and so on).
+- Quantified team cards can be filtered to lineups whose listed constellation requirements are fully
+  verified by the imported history.
+- Gacha weapons found in history are marked too. Craftable, event, quest, and otherwise non-gacha
+  equipment may still show as unknown.
+- A missing character is always shown as **Not seen in imported history / Unknown**, never definitely
+  unowned. HoYoverse history can be incomplete and some characters are obtained outside wishes.
+
+The numerical Odette rankings are a versioned 7.0 theorycraft snapshot. Comparable DPS values are
+kept separate from guide-backed team variants that do not have equivalent calculations, preventing
+made-up rankings from being presented as measured results. Source links and assumptions are shown
+directly on the page.
+
 ### Enable Google Drive (optional)
 1. In [Google Cloud Console](https://console.cloud.google.com/): create a project.
 2. *APIs & Services → Library* → enable **Google Drive API**.

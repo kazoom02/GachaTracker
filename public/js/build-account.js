@@ -149,6 +149,49 @@ export function buildGuideVariantTeams(variants = [], startRank = 50) {
  * every other member and removes X. This prevents misleading cases where a nearby team
  * changes two slots but the UI accidentally implies that only one character changed.
  */
+
+function constellationFitForMember(member, status) {
+  const bonuses = [...(member?.constellationBonuses || [])]
+    .map((bonus) => ({
+      constellation: Math.max(0, Math.min(6, Number(bonus.constellation || 0))),
+      score: Number(bonus.score || 0),
+      label: String(bonus.label || `C${bonus.constellation}`),
+      note: String(bonus.note || ''),
+    }))
+    .sort((a, b) => a.constellation - b.constellation);
+
+  const current = Number.isInteger(status?.constellation) ? Number(status.constellation) : null;
+  let score = 0;
+  const active = [];
+  const pending = [];
+  for (const bonus of bonuses) {
+    if (current != null && current >= bonus.constellation) {
+      score += bonus.score;
+      active.push(bonus);
+    } else {
+      pending.push(bonus);
+    }
+  }
+  return {
+    current,
+    score,
+    active,
+    pending,
+    next: pending[0] || null,
+  };
+}
+
+function constellationFitForTeam(team, account) {
+  let score = 0;
+  const members = [];
+  for (const entry of account?.members || []) {
+    const fit = constellationFitForMember(entry.member, entry.status);
+    score += fit.score;
+    if (fit.active.length || fit.next) members.push({ member: entry.member, status: entry.status, fit });
+  }
+  return { score, members };
+}
+
 export function suggestTeamSubstitutions(
   team,
   allTeams = [],
@@ -191,17 +234,22 @@ export function suggestTeamSubstitutions(
       if (status.state === 'unowned') continue;
       const targetAccount = teamHistoryStatus(targetTeam, ownership, overrides);
       const key = replacement.canonical;
+      const constellationFit = constellationFitForMember(replacement, status);
+      const teamConstellationFit = constellationFitForTeam(targetTeam, targetAccount);
       const candidate = {
         name: replacement.canonical,
         role: replacement.role || '',
         minConstellation: Number(replacement.minConstellation || 0),
         status,
+        constellationFit,
         targetTeam,
         targetAccount,
         evidence: [targetTeam.substitutionEvidence || (targetTeam.isVariant ? 'Exact one-slot guide variant' : 'Exact one-slot source swap')],
         score: (status.state === 'verified' ? 1000 : status.state === 'short' ? 160 : 20)
           + (targetAccount.fullyVerified ? 300 : 0)
           - targetAccount.blockers.length * 35
+          + constellationFit.score
+          + teamConstellationFit.score * 0.25
           + sourceStrengthBonus(targetTeam),
       };
       const previous = candidates.get(key);
@@ -260,15 +308,18 @@ export function suggestAlternativeLineups(
     // Don't clutter the UI with an alternative that is strictly harder to build and barely related.
     if (!account.fullyVerified && account.blockers.length > baseAccount.blockers.length && shared < baseMembers.length - 1) continue;
 
+    const constellationFit = constellationFitForTeam(targetTeam, account);
     rows.push({
       team: targetTeam,
       account,
+      constellationFit,
       shared,
       removed,
       added,
       score: (account.fullyVerified ? 10000 : 0)
         - account.blockers.length * 1000
         + shared * 150
+        + constellationFit.score
         + sourceStrengthBonus(targetTeam),
     });
   }
@@ -289,11 +340,20 @@ function strength(team) {
 
 export function rankBuildableTeams(teams = [], ownership, overrides = {}) {
   return teams
-    .map((team) => ({ team, account: teamHistoryStatus(team, ownership, overrides) }))
+    .map((team) => {
+      const account = teamHistoryStatus(team, ownership, overrides);
+      return { team, account, constellationFit: constellationFitForTeam(team, account) };
+    })
     .filter((entry) => entry.account.fullyVerified)
     .sort((a, b) => {
       const sa = strength(a.team), sb = strength(b.team);
-      return sb.numeric - sa.numeric || sb.quality - sa.quality || sb.value - sa.value || Number(a.team.rank || 999) - Number(b.team.rank || 999);
+      // Numeric simulations/published calcs remain ordered by evidence quality + DPS.
+      // Constellation-fit bonuses only break ties / rank qualitative flex-guide teams.
+      if (sb.numeric !== sa.numeric) return sb.numeric - sa.numeric;
+      if (sa.numeric || sb.numeric) return sb.quality - sa.quality || sb.value - sa.value || Number(a.team.rank || 999) - Number(b.team.rank || 999);
+      return b.constellationFit.score - a.constellationFit.score
+        || sb.value - sa.value
+        || Number(a.team.rank || 999) - Number(b.team.rank || 999);
     });
 }
 

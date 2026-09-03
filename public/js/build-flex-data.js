@@ -20,7 +20,10 @@ const FLEX_TEAMS = {
         { name:'Lohen', role:'Main DPS' },
         { name:'Furina', role:'Hydro sub-DPS / buffer' },
         { name:'Mona', role:'Hexerei support / buffer' },
-        { name:'Xilonen', role:'Healer / RES shred' },
+        { name:'Xilonen', role:'Healer / RES shred',
+          constellationBonuses:[
+            { constellation:2, score:22, label:'C2 major Lohen upgrade', note:'C2 gives Cryo teammates +60% CRIT DMG while her Source Samples are active.' },
+          ] },
       ],
     },
     {
@@ -36,7 +39,10 @@ const FLEX_TEAMS = {
         { name:'Lohen', role:'Main DPS' },
         { name:'Furina', role:'Hydro sub-DPS / buffer' },
         { name:'Mona', role:'Hexerei support / buffer' },
-        { name:'Mika', role:'Cryo healer / support' },
+        { name:'Mika', role:'Cryo healer / support',
+          constellationBonuses:[
+            { constellation:1, score:5, label:'C1 healing QoL', note:'C1 shortens his healing interval; useful with Furina, but Mika C6 is a Physical-only payoff and receives no extra Lohen Freeze score.' },
+          ] },
       ],
     },
     {
@@ -52,7 +58,11 @@ const FLEX_TEAMS = {
         { name:'Lohen', role:'Main DPS' },
         { name:'Furina', role:'Hydro sub-DPS / buffer' },
         { name:'Mona', role:'Hexerei support / buffer' },
-        { name:'Citlali', role:'Cryo support / shield' },
+        { name:'Citlali', role:'Cryo support / shield',
+          constellationBonuses:[
+            { constellation:1, score:10, label:'C1 stronger generic buff', note:'C1 adds a sizable damage bonus to the active character’s attacks.' },
+            { constellation:2, score:4, label:'C2 extra team value', note:'C2 further improves Citlali’s support ceiling, though its EM/Pyro-Hydro shred is less valuable to Cryo Lohen than in Melt/Vape.' },
+          ] },
       ],
     },
     {
@@ -68,7 +78,11 @@ const FLEX_TEAMS = {
         { name:'Lohen', role:'Main DPS' },
         { name:'Furina', role:'Hydro sub-DPS / buffer' },
         { name:'Mona', role:'Hexerei support / buffer' },
-        { name:'Charlotte', role:'Cryo healer' },
+        { name:'Charlotte', role:'Cryo healer',
+          constellationBonuses:[
+            { constellation:1, score:16, label:'C1 excellent with Furina', note:'C1 adds sustained party healing after Burst, directly helping Furina Fanfare and survivability.' },
+            { constellation:4, score:8, label:'C4 lowers ER burden', note:'C4 refunds up to 10 Energy and KQM estimates roughly 25% lower ER requirements.' },
+          ] },
       ],
     },
     {
@@ -84,7 +98,11 @@ const FLEX_TEAMS = {
         { name:'Lohen', role:'Main DPS' },
         { name:'Furina', role:'Hydro sub-DPS / buffer' },
         { name:'Mona', role:'Hexerei support / buffer' },
-        { name:'Shenhe', role:'Cryo buffer' },
+        { name:'Shenhe', role:'Cryo buffer',
+          constellationBonuses:[
+            { constellation:1, score:6, label:'C1 rotation / Energy upgrade', note:'C1 adds a Skill charge and improves rotation flexibility and batterying.' },
+            { constellation:2, score:14, label:'C2 strong Cryo breakpoint', note:'C2 extends Burst duration and grants active characters in the field +15% Cryo CRIT DMG.' },
+          ] },
       ],
     },
     {
@@ -100,7 +118,10 @@ const FLEX_TEAMS = {
         { name:'Lohen', role:'Main DPS' },
         { name:'Furina', role:'Hydro sub-DPS / buffer' },
         { name:'Mona', role:'Hexerei support / buffer' },
-        { name:'Jean', role:'Anemo healer / VV support' },
+        { name:'Jean', role:'Anemo healer / VV support',
+          constellationBonuses:[
+            { constellation:2, score:5, label:'C2 modest combo QoL', note:'C2 grants 15% ATK SPD after Jean catches a particle; useful but not a major Lohen damage breakpoint.' },
+          ] },
       ],
     },
 
@@ -116,7 +137,11 @@ const FLEX_TEAMS = {
       sources: ['GameWith — Best Teams for Lohen'],
       members: [
         { name:'Lohen', role:'Main DPS' },
-        { name:'Yelan', role:'Hydro sub-DPS / buffer' },
+        { name:'Yelan', role:'Hydro sub-DPS / buffer',
+          constellationBonuses:[
+            { constellation:1, score:5, label:'C1 easier Energy', note:'C1 adds a Skill charge and improves Burst consistency.' },
+            { constellation:2, score:11, label:'C2 stronger Hydro / damage', note:'C2 adds an extra Burst arrow, increasing Hydro application and personal damage.' },
+          ] },
         { name:'Mona', role:'Hexerei support / buffer' },
         { name:'Escoffier', role:'Cryo sub-DPS / healer' },
       ],
@@ -132,7 +157,11 @@ const FLEX_TEAMS = {
       sources: ['GameWith — Best Teams for Lohen'],
       members: [
         { name:'Lohen', role:'Main DPS' },
-        { name:'Xingqiu', role:'Hydro sub-DPS' },
+        { name:'Xingqiu', role:'Hydro sub-DPS',
+          constellationBonuses:[
+            { constellation:2, score:12, label:'C2 important breakpoint', note:'C2 extends Burst duration and shreds 15% Hydro RES.' },
+            { constellation:6, score:22, label:'C6 major breakpoint', note:'C6 substantially improves Burst damage, Hydro application and Energy economy.' },
+          ] },
         { name:'Mona', role:'Hexerei support / buffer' },
         { name:'Escoffier', role:'Cryo sub-DPS / healer' },
       ],

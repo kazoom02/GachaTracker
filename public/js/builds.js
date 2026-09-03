@@ -553,9 +553,16 @@ function replacementSuggestions(team, account) {
       const target = enrichVariantTeam(candidate.targetTeam);
       const previewId = registerLineupPreview(team, target, `Replace ${missingName} with ${candidate.name}`);
       const requirement = Number(candidate.minConstellation || 0) > 0 ? ` · C${candidate.minConstellation}+ required` : '';
+      const fit = candidate.constellationFit || { active:[], next:null, current:status.constellation };
+      const constellationLine = fit.active?.length
+        ? `${fit.active[fit.active.length - 1].label} active${fit.next ? ` · next: ${fit.next.label}` : ''}`
+        : fit.next
+          ? `Works at C${fit.current ?? 0} · next breakpoint: ${fit.next.label}`
+          : `C${fit.current ?? 0} · no team-specific breakpoint`;
+      const breakpointDetail = fit.active?.length ? fit.active[fit.active.length - 1].note : fit.next?.note || '';
       return `<button type="button" class="replacement-option replacement-option--${esc(status.state)}" data-lineup-preview="${esc(previewId)}" title="Preview the complete team after this swap">
         ${imageTile(candidate.name, 'Character', 'character', 'replacement-option__icon')}
-        <span class="replacement-option__copy"><b>${esc(candidate.name)}</b><small>${esc(candidate.evidence?.[0] || 'Exact one-slot source swap')}${esc(requirement)}</small><span>${esc(status.label)} · click to preview team</span></span>
+        <span class="replacement-option__copy"><b>${esc(candidate.name)}</b><small>${esc(candidate.evidence?.[0] || 'Exact one-slot source swap')}${esc(requirement)}</small><span>${esc(status.label)} · ${esc(constellationLine)}</span>${breakpointDetail ? `<em class="replacement-constellation-note">${esc(breakpointDetail)}</em>` : ''}</span>
         ${index === 0 && status.state === 'verified' ? '<i class="replacement-best">BEST OWNED</i>' : ''}
       </button>`;
     }).join('')}</div></div>`;
@@ -567,6 +574,23 @@ function replacementSuggestions(team, account) {
 }
 
 
+
+
+function flexConstellationMarkup(team) {
+  if (!team?.isFlexTeam) return '';
+  const rows = [];
+  for (const member of team.members || []) {
+    if (!(member.constellationBonuses || []).length) continue;
+    const status = characterHistoryStatus(member.name, ownership, member.minConstellation || 0, overrides);
+    const current = Number.isInteger(status.constellation) ? status.constellation : null;
+    const active = (member.constellationBonuses || []).filter((bonus) => current != null && current >= Number(bonus.constellation || 0));
+    const pending = (member.constellationBonuses || []).filter((bonus) => current == null || current < Number(bonus.constellation || 0));
+    const bestActive = active[active.length - 1];
+    const next = pending[0];
+    rows.push(`<div><b>${esc(member.name)} ${current != null ? `C${current}` : 'C?'}</b><span>${bestActive ? `${esc(bestActive.label)} active` : 'Base version used'}${next ? ` · next: ${esc(next.label)}` : ''}</span></div>`);
+  }
+  return rows.length ? `<div class="flex-constellation-fit"><strong>Constellation fit on this profile</strong>${rows.join('')}</div>` : '';
+}
 
 function simulationDetailsMarkup(team) {
   if (!team?.isSimulation || !team.simulation) return '';
@@ -637,6 +661,7 @@ function teamCard(team, { personalRank = null, closest = false } = {}) {
       ${simulationDetailsMarkup(team)}
       ${theorycraftNotesMarkup(team)}
       ${team.isFlexTeam && team.flexNote ? `<div class="flex-evidence"><b>${esc(team.substitutionEvidence || 'Cross-source replacement')}</b><span>${esc(team.flexNote)}</span></div>` : ''}
+      ${flexConstellationMarkup(team)}
       ${meter}${blockers}${team.isTheorycraft ? '' : replacementSuggestions(team, account)}
       <div class="build-team__foot"><span>${team.isSimulation ? `${esc(team.simulation?.quality || 'Validated gcsim')} · exact loadout` : team.isTheorycraft ? 'Guide-supported account theorycraft' : team.isFlexTeam ? `Cross-source flex · ${esc(team.flexConfidence || 'medium')} confidence` : team.isBudget ? 'KQM limited-roster alternative' : team.isVariant ? 'Guide-backed variant' : team.tier ? `Tier ${esc(team.tier)}` : Number.isFinite(Number(team.relative)) ? `${esc(team.relative)}% of source #1` : 'Source-ranked'}</span>${team.isVariant || team.isTheorycraft || team.isFlexTeam ? '' : `<span>${team.isBudget ? 'Budget' : 'Source'} rank #${esc(team.rank)}</span>`}<span class="account-fit ${account.fullyVerified ? 'account-fit--yes' : ''}">${esc(accountLabel)}</span></div>
     </div>

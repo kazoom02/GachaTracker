@@ -33,6 +33,35 @@ const TEAM_SLUG = {
   'Traveler (Cryo)': 'traveler_cryo',
 };
 
+
+const GCSIM_KEY = {
+  Itto: 'aratakiitto',
+  Ayaka: 'kamisatoayaka',
+  Ayato: 'kamisatoayato',
+  Childe: 'tartaglia',
+  Kazuha: 'kaedeharakazuha',
+  Kokomi: 'sangonomiyakokomi',
+  Raiden: 'raidenshogun',
+  Sara: 'kujousara',
+  Heizou: 'shikanoinheizou',
+  'Yumemizuki Mizuki': 'yumemizukimizuki',
+  'Kuki Shinobu': 'kukishinobu',
+  'Traveler (Anemo)': 'traveler-anemo',
+  'Traveler (Dendro)': 'traveler-dendro',
+  'Traveler (Electro)': 'traveler-electro',
+  'Traveler (Geo)': 'traveler-geo',
+  'Traveler (Hydro)': 'traveler-hydro',
+  'Traveler (Pyro)': 'traveler-pyro',
+  'Traveler (Cryo)': 'traveler-cryo',
+};
+
+function gcsimKeysFor(guideName) {
+  const explicit = GCSIM_KEY[guideName] || simpleSlug(guideName);
+  if (!explicit.startsWith('traveler-')) return [explicit];
+  const element = explicit.split('-')[1];
+  return [`aether${element}`, `lumine${element}`];
+}
+
 const GG_SLUG = {
   'Traveler (Anemo)': 'traveler%28anemo%29',
   'Traveler (Dendro)': 'traveler%28dendro%29',
@@ -69,6 +98,7 @@ function entry(guideName, rarity) {
     rarity,
     ggSlug: GG_SLUG[guideName] || simpleSlug(guideName),
     teamSlug: TEAM_SLUG[guideName] || teamSlug(guideName),
+    gcsimKeys: gcsimKeysFor(guideName),
   };
 }
 
@@ -80,6 +110,10 @@ export const GENSHIN_BUILD_CATALOG = [
 const BY_ID = new Map(GENSHIN_BUILD_CATALOG.map((item) => [item.id, item]));
 const BY_CANONICAL = new Map(GENSHIN_BUILD_CATALOG.map((item) => [item.name.toLowerCase(), item]));
 const BY_GUIDE = new Map(GENSHIN_BUILD_CATALOG.map((item) => [item.guideName.toLowerCase(), item]));
+const BY_GCSIM = new Map();
+for (const item of GENSHIN_BUILD_CATALOG) {
+  for (const key of item.gcsimKeys || []) BY_GCSIM.set(String(key).toLowerCase(), item);
+}
 
 const EXTRA_ALIASES = new Map([
   ['ayaka', 'Kamisato Ayaka'],
@@ -110,6 +144,7 @@ export function canonicalCharacterName(value) {
   if (EXTRA_ALIASES.has(key)) return EXTRA_ALIASES.get(key);
   if (BY_CANONICAL.has(key)) return BY_CANONICAL.get(key).name;
   if (BY_GUIDE.has(key)) return BY_GUIDE.get(key).name;
+  if (BY_GCSIM.has(key)) return BY_GCSIM.get(key).name;
   return raw;
 }
 
@@ -129,5 +164,16 @@ export function guideQuery(entryValue) {
     ggSlug: item.ggSlug,
     teamSlug: item.teamSlug,
     rarity: String(item.rarity),
+  }).toString();
+}
+
+
+export function simQuery(entryValue) {
+  const item = typeof entryValue === 'string' ? getCatalogCharacter(entryValue) : entryValue;
+  return new URLSearchParams({
+    id: item.id,
+    name: item.name,
+    rarity: String(item.rarity),
+    gcsimKeys: (item.gcsimKeys || []).join(','),
   }).toString();
 }

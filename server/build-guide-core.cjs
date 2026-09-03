@@ -207,6 +207,196 @@ function parseTeamGuide(html, focusName, alternateName = '') {
   return { summary, updated: updatedMatch ? updatedMatch[1] : '', teams: teams.map(({ _key, ...team }) => team) };
 }
 
+
+function htmlToMarkedLines(html) {
+  const marked = String(html || '').replace(
+    /<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/gi,
+    (_, level, inner) => `\n@@H${level}@@ ${inner}\n`,
+  );
+  return htmlToLines(marked);
+}
+
+function parseConstellationName(value) {
+  let name = String(value || '')
+    .replace(/^Image:?\s*/i, '')
+    .replace(/[★☆]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const match = name.match(/\s*\(C(\d+)\+?\)\s*$/i);
+  const minConstellation = match ? Number(match[1]) : 0;
+  name = name.replace(/\s*\(C\d+\+?\)\s*$/i, '').trim();
+  return { name, minConstellation };
+}
+
+function cartesian(options, limit = 16) {
+  let rows = [[]];
+  for (const list of options) {
+    const next = [];
+    for (const row of rows) {
+      for (const item of list) {
+        next.push([...row, item]);
+        if (next.length >= limit) break;
+      }
+      if (next.length >= limit) break;
+    }
+    rows = next;
+    if (!rows.length) break;
+  }
+  return rows;
+}
+
+function isGenericTeamSlot(name) {
+  return /^(flex|anemo|cryo|hydro|pyro|electro|geo|dendro|support|healer|dps|off-field .*|pyro enabler|cryo flex)$/i.test(String(name || '').trim());
+}
+
+function parseKQMLimitedRosterTeams(html, focusName, alternateName = '') {
+  const lines = htmlToMarkedLines(html);
+  const focusPatterns = [focusName, alternateName].filter(Boolean).map((name) => new RegExp(escapeRegExp(name), 'i'));
+  const results = [];
+  let rank = 0;
+
+  for (let i = 0; i < lines.length; i++) {
+    const heading = lines[i].match(/^@@H([1-6])@@\s+Limited Roster Alternatives$/i);
+    if (!heading) continue;
+    const level = Number(heading[1]);
+
+    // Find the nearest preceding section heading so the reaction/archetype can be labeled.
+    let context = '';
+    for (let j = i - 1; j >= 0; j--) {
+      const previous = lines[j].match(/^@@H([1-3])@@\s+(.+)$/);
+      if (previous) { context = previous[2]; break; }
+    }
+    const reaction = inferArchetype(context, focusName);
+
+    let end = lines.length;
+    for (let j = i + 1; j < lines.length; j++) {
+      const nextHeading = lines[j].match(/^@@H([1-6])@@\s+/);
+      if (nextHeading && Number(nextHeading[1]) <= level) { end = j; break; }
+    }
+
+    for (let j = i + 1; j < end; j++) {
+      const line = lines[j];
+      if (!/[—–]/.test(line)) continue;
+      if (!focusPatterns.some((pattern) => pattern.test(line))) continue;
+
+      const slots = line.split(/\s+[—–]\s+/).map((slot) => slot.trim()).filter(Boolean);
+      if (slots.length !== 4) continue;
+
+      const optionLists = slots.map((slot) => slot.split(/\s*\/\s*/).map(parseConstellationName).filter((member) => member.name && !isGenericTeamSlot(member.name)));
+      if (optionLists.some((list) => !list.length)) continue;
+
+      let note = '';
+      for (let k = j + 1; k < Math.min(end, j + 6); k++) {
+        const candidate = lines[k];
+        if (/^@@H/.test(candidate) || /[—–]/.test(candidate) || /^Sample Rotation/i.test(candidate)) break;
+        if (/^These teams are meant/i.test(candidate)) continue;
+        if (candidate.length >= 28) { note = candidate; break; }
+      }
+
+      for (const members of cartesian(optionLists)) {
+        const names = members.map((member) => member.name);
+        if (!focusPatterns.some((pattern) => names.some((name) => pattern.test(name)))) continue;
+        if (new Set(names.map((name) => name.toLowerCase())).size !== 4) continue;
+        rank++;
+        results.push({
+          rank,
+          name: `${reaction || 'Budget'} — Limited Roster`,
+          reaction: reaction || 'General',
+          tier: 'F2P',
+          budget: true,
+          f2p: true,
+          dps: null,
+          relative: null,
+          confidence: 'kqm-limited-roster',
+          note: note || 'Limited-roster team listed by KQM for newer players or accounts missing premium teammates.',
+          members: members.map((member, index) => ({
+            name: member.name,
+            role: index === 0 ? 'Core / DPS' : 'Budget teammate',
+            minConstellation: member.minConstellation,
+          })),
+        });
+      }
+    }
+  }
+
+  const unique = new Map();
+  for (const team of results) {
+    const key = team.members.map((member) => member.name.toLowerCase()).sort().join('|');
+    if (!unique.has(key)) unique.set(key, team);
+  }
+  return [...unique.values()].map((team, index) => ({ ...team, rank: index + 1 }));
+}
+
+function buildKQMCandidates(guideName, officialName = '') {
+  const variants = [];
+  for (const sourceName of [guideName, officialName]) {
+    const normalized = String(sourceName || '')
+      .toLowerCase()
+      .normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    if (!normalized) continue;
+    variants.push(normalized);
+    const parts = normalized.split('-').filter(Boolean);
+    if (parts.length > 1) variants.push(parts[parts.length - 1]);
+  }
+  const unique = [...new Set(variants)].slice(0, 2);
+  return unique.flatMap((slug) => [
+    `https://keqingmains.com/q/${slug}-quickguide/`,
+    `https://keqingmains.com/${slug}/`,
+  ]);
+}
+
+const BUDGET_TEAM_FALLBACKS = {
+  Lohen: {
+    source: 'https://keqingmains.com/q/lohen-quickguide/',
+    label: 'KQM — Lohen Limited Roster Alternatives',
+    teams: [
+      ['F2P Reverse Melt','Melt',['Lohen','Xiangling','Bennett','Sucrose'],'KQM calls this a more accessible Reverse Melt team. Xiangling supplies off-field Pyro, Bennett buffs/heals, and Sucrose provides EM/TTDS utility.'],
+      ['Double Cryo / Pyro Melt (Kaeya)','Melt',['Lohen','Xiangling','Bennett','Kaeya'],'KQM limited-roster Melt option. Kaeya adds off-field Cryo so Xiangling can Melt more Pyronado hits.'],
+      ['Double Cryo / Pyro Melt (Rosaria)','Melt',['Lohen','Xiangling','Bennett','Rosaria'],'KQM limited-roster Melt option. Rosaria adds off-field Cryo so Xiangling can Melt more Pyronado hits.'],
+      ['Accessible Freeze','Freeze',['Lohen','Sucrose','Xingqiu','Kaeya'],'KQM limited-roster Freeze option using Sucrose for VV/TTDS, Xingqiu for Hydro and survivability, and free Kaeya for Cryo Resonance/off-field damage.'],
+    ],
+  },
+};
+
+function budgetFallback(guideName, officialName = '') {
+  const fallback = BUDGET_TEAM_FALLBACKS[guideName] || BUDGET_TEAM_FALLBACKS[officialName];
+  if (!fallback) return null;
+  return {
+    source: fallback.source,
+    label: fallback.label,
+    teams: fallback.teams.map(([name, reaction, members, note], index) => ({
+      rank: index + 1,
+      name,
+      reaction,
+      tier: 'F2P',
+      budget: true,
+      f2p: true,
+      dps: null,
+      relative: null,
+      confidence: 'kqm-limited-roster-fallback',
+      note,
+      members: members.map((member, memberIndex) => ({
+        name: member,
+        role: memberIndex === 0 ? 'Core / DPS' : 'Budget teammate',
+        minConstellation: 0,
+      })),
+    })),
+  };
+}
+
+async function loadKQMBudgetGuide(guideName, officialName, fetchImpl = global.fetch) {
+  try {
+    const result = await firstSuccessful(buildKQMCandidates(guideName, officialName), fetchImpl, 3500);
+    const teams = parseKQMLimitedRosterTeams(result.html, guideName, officialName);
+    if (teams.length) return { teams, url: result.url, label: 'KQM — Limited Roster Alternatives', live: true };
+  } catch { /* KQM budget coverage is optional */ }
+
+  const fallback = budgetFallback(guideName, officialName);
+  return fallback ? { teams: fallback.teams, url: fallback.source, label: fallback.label, live: false } : { teams: [], url: '', label: '', live: false };
+}
+
 function inferArchetype(teamName, focusName = '') {
   let text = String(teamName || '').replace(new RegExp(escapeRegExp(focusName), 'ig'), '').replace(/Team|#\d+/gi, ' ').trim();
   const known = ['Stellar-Conduct','Stellar-Swirl','Vaporize','Melt','Freeze','Hyperbloom','Burgeon','Bloom','Aggravate','Spread','Quicken','Overload','Superconduct','Electro-Charged','Burning','Mono Pyro','Mono Hydro','Mono Cryo','Mono Geo','Pure Pyro','Physical','Plunge','Geo'];
@@ -294,9 +484,9 @@ function safeToken(value, pattern, fallback = '') {
   return pattern.test(raw) ? raw : fallback;
 }
 
-async function fetchText(url, fetchImpl = global.fetch) {
+async function fetchText(url, fetchImpl = global.fetch, timeoutMs = BUILD_TIMEOUT_MS) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), BUILD_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const response = await fetchImpl(url, {
       signal: controller.signal,
@@ -310,10 +500,10 @@ async function fetchText(url, fetchImpl = global.fetch) {
   } finally { clearTimeout(timer); }
 }
 
-async function firstSuccessful(urls, fetchImpl) {
+async function firstSuccessful(urls, fetchImpl, timeoutMs = BUILD_TIMEOUT_MS) {
   const errors = [];
   for (const url of urls) {
-    try { return { url, html: await fetchText(url, fetchImpl) }; }
+    try { return { url, html: await fetchText(url, fetchImpl, timeoutMs) }; }
     catch (error) { errors.push(`${url}: ${error.message}`); }
   }
   const failure = new Error(errors.join(' | ') || 'No source URL available');
@@ -348,6 +538,7 @@ async function getBuildGuide(query, fetchImpl = global.fetch) {
   let build = { element:'', weaponType:'', role:'', weapons:[], artifacts:[], stats:{main:[],sub:[],alternativeCirclet:'',notes:[]}, teamArchetypes:[] };
   let teamGuide = { summary:'', updated:'', teams:[] };
   const sourceStatus = [];
+  const budgetPromise = loadKQMBudgetGuide(guideName, name, fetchImpl);
 
   if (ggSlug) {
     try {
@@ -378,6 +569,11 @@ async function getBuildGuide(query, fetchImpl = global.fetch) {
     }
   }
 
+  const budgetGuide = await budgetPromise;
+  if (budgetGuide.teams.length) {
+    sourceStatus.push({ source: budgetGuide.label, ok: true, url: budgetGuide.url, budget: true, fallback: !budgetGuide.live });
+  }
+
   const bestTeam = teamGuide.teams[0];
   const bestWeapon = build.weapons[0];
   const bestArtifact = build.artifacts[0];
@@ -404,6 +600,7 @@ async function getBuildGuide(query, fetchImpl = global.fetch) {
       bestArtifact: bestArtifact?.name || 'Live build unavailable',
     },
     teams: teamGuide.teams,
+    budgetTeams: budgetGuide.teams,
     variants: [],
     weapons: build.weapons,
     artifacts: build.artifacts,
@@ -412,11 +609,13 @@ async function getBuildGuide(query, fetchImpl = global.fetch) {
       'Generic character teams follow the current source guide ranking and tier; Convene does not invent DPS values where no comparable simulation is published.',
       'Imported wish history can prove a character/constellation was seen, but absence from history does not prove the character is unowned. Use roster corrections for incomplete history.',
       'Generic live team entries are treated as C0 unless the composition itself exposes an explicit constellation requirement. High-investment variants should be checked against the linked source.',
+      'F2P / Limited Roster teams are lower-ceiling alternatives sourced from KQM where available. “F2P” describes roster accessibility, not equal performance to premium teams.',
       'Source rankings can change with patches, enemies, rotations, investment and new releases. Live data is cached to reduce source traffic.',
     ],
     sources: [
       { label: 'Genshin.gg — Current Character Build', url: sourceStatus.find((item) => item.source === 'Genshin.gg' && item.ok)?.url || 'https://genshin.gg/builds/', use: 'Weapon, artifact and stat ordering' },
       { label: 'Genshin-Builds.com — Current Team Guide', url: sourceStatus.find((item) => item.source === 'Genshin-Builds.com' && item.ok)?.url || 'https://genshin-builds.com/en/teams', use: 'Ranked team compositions and guide tiers' },
+      ...(budgetGuide.teams.length ? [{ label: budgetGuide.label, url: budgetGuide.url, use: 'F2P / limited-roster team alternatives for accounts missing premium teammates' }] : []),
       ...(fallbackSource ? [{ label: fallbackSource.label, url: fallbackSource.source, use: 'Traveler team examples when the live Team Lab has no dedicated elemental Traveler guide' }] : []),
     ],
     sourceStatus,
@@ -427,7 +626,9 @@ module.exports = {
   htmlToLines,
   parseGenshinGG,
   parseTeamGuide,
+  parseKQMLimitedRosterTeams,
   inferArchetype,
   buildTeamCandidates,
+  buildKQMCandidates,
   getBuildGuide,
 };

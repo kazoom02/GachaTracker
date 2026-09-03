@@ -92,9 +92,23 @@
       <div class="account-stats"><span><b id="owned-count">0</b> characters seen</span><span><b id="typed-pulls">0</b> typed wish records</span></div>
     </section>
 
+    <section class="build-section sim-section" id="sim-section">
+      <header class="build-section__head">
+        <div>
+          <p class="eyebrow"><span></span> Numerical theorycraft</p>
+          <h2>Simulated team DPS</h2>
+          <p>Live gcsim/Simpact results with exact C0–C6 assumptions, weapons/refinements, artifacts, talents and target settings. Convene scans deeper for C0/F2P and low-constellation 4★ teams instead of letting whale uploads crowd them out.</p>
+        </div>
+        <div id="sim-filters" class="team-filters sim-filters" aria-label="Simulation investment filters"></div>
+      </header>
+      <div id="sim-status" class="sim-status"></div>
+      <div id="sim-teams" class="build-teams sim-teams"></div>
+      <p class="sim-disclaimer"><b>Important:</b> gcsim's public database contains configs made under different standards. Convene ranks standardized evidence before raw DPS and keeps C0/F2P/4★ investment bands separate. Every number is tied to the exact loadout shown.</p>
+    </section>
+
     <section class="optimizer build-section">
       <header class="build-section__head">
-        <div><p class="eyebrow"><span></span> Account optimizer</p><h2>Best teams you can actually build</h2><p id="optimizer-copy">Convene checks exact guide teams first, then theorycrafts valid lineups from the characters confirmed on your active profile.</p></div>
+        <div><p class="eyebrow"><span></span> Account optimizer</p><h2>Best teams you can actually build</h2><p id="optimizer-copy">Convene checks exact simulated lineups first when their character and constellation assumptions match your roster, then falls back to premium, F2P and source-backed theorycraft teams.</p></div>
         <div id="optimizer-filters" class="team-filters" aria-label="Personalized team filters"></div>
       </header>
       <div id="my-teams" class="personal-teams"></div>
@@ -115,6 +129,18 @@
         <div id="reaction-filters" class="team-filters" aria-label="Team filters"></div>
       </header>
       <div id="teams" class="build-teams"></div>
+    </section>
+
+    <section class="build-section budget-section" id="budget-section" hidden>
+      <header class="build-section__head">
+        <div>
+          <p class="eyebrow"><span></span> Accessible teams</p>
+          <h2>F2P / Limited roster teams</h2>
+          <p id="budget-copy">Lower-cost source-backed teams for accounts missing premium teammates.</p>
+        </div>
+        <span class="budget-source-badge">KQM LIMITED ROSTER</span>
+      </header>
+      <div id="budget-teams" class="build-teams"></div>
     </section>
 
     <section class="build-section" id="variants-section">
@@ -147,6 +173,6 @@
     <p class="muted">Generic guide rankings do not receive invented DPS. “Unknown” ownership does not mean unowned.</p>
   </footer>
 
-  <script type="module" src="js/builds.js?v=20260903g"></script>
+  <script type="module" src="js/builds.js?v=20260903j"></script>
 </body>
 </html>

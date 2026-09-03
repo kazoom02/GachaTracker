@@ -99,12 +99,14 @@ function roleKey(role) {
   return value.replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 }
 
+function hasPublishedDps(value) { return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)); }
+
 function sourceStrengthBonus(team) {
-  if (Number.isFinite(Number(team?.dps))) {
+  if (hasPublishedDps(team?.dps)) {
     const dps = Math.max(0, Number(team.dps));
     return Math.min(80, dps / 5000);
   }
-  const tierScores = { SS: 45, 'S+': 40, S: 36, 'A+': 30, A: 26, 'B+': 20, B: 16, C: 10, GUIDE: 12, BEST: 42 };
+  const tierScores = { SS: 45, 'S+': 40, S: 36, 'A+': 30, A: 26, 'B+': 20, B: 16, C: 10, GUIDE: 12, F2P: 8, BEST: 42 };
   return (tierScores[String(team?.tier || '').toUpperCase()] || 12) + Math.max(0, 14 - Number(team?.rank || 14));
 }
 
@@ -277,9 +279,12 @@ export function suggestAlternativeLineups(
 }
 
 function strength(team) {
-  if (Number.isFinite(Number(team?.dps))) return { numeric: 1, value: Number(team.dps) };
-  const tierScores = { SS: 600, 'S+': 560, S: 520, 'A+': 460, A: 420, 'B+': 360, B: 320, C: 240, GUIDE: 200 };
-  return { numeric: 0, value: (tierScores[String(team?.tier || '').toUpperCase()] || 200) - Number(team?.rank || 999) };
+  if (hasPublishedDps(team?.dps)) {
+    const quality = team?.isSimulation ? Number(team?.simulation?.qualityRank || 1) : 4;
+    return { numeric: 1, quality, value: Number(team.dps) };
+  }
+  const tierScores = { SS: 600, 'S+': 560, S: 520, 'A+': 460, A: 420, 'B+': 360, B: 320, C: 240, GUIDE: 200, F2P: 160 };
+  return { numeric: 0, quality: 0, value: (tierScores[String(team?.tier || '').toUpperCase()] || 200) - Number(team?.rank || 999) };
 }
 
 export function rankBuildableTeams(teams = [], ownership, overrides = {}) {
@@ -288,7 +293,7 @@ export function rankBuildableTeams(teams = [], ownership, overrides = {}) {
     .filter((entry) => entry.account.fullyVerified)
     .sort((a, b) => {
       const sa = strength(a.team), sb = strength(b.team);
-      return sb.numeric - sa.numeric || sb.value - sa.value || Number(a.team.rank || 999) - Number(b.team.rank || 999);
+      return sb.numeric - sa.numeric || sb.quality - sa.quality || sb.value - sa.value || Number(a.team.rank || 999) - Number(b.team.rank || 999);
     });
 }
 
@@ -300,7 +305,7 @@ export function rankClosestTeams(teams = [], ownership, overrides = {}, limit = 
       const blockerDiff = a.account.blockers.length - b.account.blockers.length;
       if (blockerDiff) return blockerDiff;
       const sa = strength(a.team), sb = strength(b.team);
-      return sb.numeric - sa.numeric || sb.value - sa.value || Number(a.team.rank || 999) - Number(b.team.rank || 999);
+      return sb.numeric - sa.numeric || sb.quality - sa.quality || sb.value - sa.value || Number(a.team.rank || 999) - Number(b.team.rank || 999);
     })
     .slice(0, limit);
 }

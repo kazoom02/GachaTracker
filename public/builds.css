@@ -959,3 +959,245 @@
   border-color: rgba(var(--accent-rgb), .35);
   background: rgba(var(--accent-rgb), .1);
 }
+
+
+/* F2P / limited-roster source teams */
+.budget-section {
+  position: relative;
+  padding: 26px;
+  background: linear-gradient(145deg, rgba(99,216,164,.035), rgba(255,255,255,.015));
+  border: 1px solid rgba(99,216,164,.13);
+  border-radius: 22px;
+}
+.budget-source-badge {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  color: var(--good);
+  background: rgba(99,216,164,.07);
+  border: 1px solid rgba(99,216,164,.2);
+  border-radius: 999px;
+  font: 700 9px 'Space Grotesk', sans-serif;
+  letter-spacing: .07em;
+}
+.build-team--budget {
+  border-color: rgba(99,216,164,.18);
+  background:
+    linear-gradient(110deg, rgba(99,216,164,.025), transparent 30%),
+    rgba(18,22,31,.78);
+}
+.build-team--budget .build-team__rank b {
+  color: var(--good);
+}
+.build-dps--budget strong {
+  display: block;
+  color: var(--good);
+  font: 700 16px 'Space Grotesk', sans-serif;
+}
+.build-dps--budget span {
+  color: var(--muted);
+  font-size: 9px;
+  letter-spacing: .06em;
+}
+@media (max-width: 700px) {
+  .budget-section { padding: 18px; }
+  .budget-source-badge { align-self: flex-start; }
+}
+
+
+/* Numerical theorycraft / gcsim evidence */
+.sim-section {
+  position: relative;
+  padding: 26px;
+  background:
+    linear-gradient(145deg, rgba(102,224,210,.035), rgba(244,200,106,.018)),
+    rgba(12,16,23,.62);
+  border: 1px solid rgba(102,224,210,.14);
+  border-radius: 22px;
+}
+.sim-filters {
+  max-width: 690px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.sim-status {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 18px;
+  margin-bottom: 14px;
+  padding: 11px 13px;
+  color: var(--ink-dim);
+  background: rgba(255,255,255,.025);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.sim-status b {
+  font: 700 12px 'Space Grotesk', sans-serif;
+}
+.sim-status span {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.45;
+  text-align: right;
+}
+.sim-status--loading { border-style: dashed; }
+.sim-status--good { border-color: rgba(99,216,164,.2); }
+.sim-status--good b { color: var(--good); }
+.sim-status--empty { border-color: rgba(244,200,106,.18); }
+.sim-disclaimer {
+  margin: 12px 2px 0;
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.55;
+}
+.sim-disclaimer b { color: var(--ink-dim); }
+
+.build-dps--sim strong { color: #77e8dc; }
+.build-dps--sim span { color: var(--muted); }
+
+.simulation-proof {
+  margin-top: 12px;
+  padding: 13px;
+  background: rgba(102,224,210,.035);
+  border: 1px solid rgba(102,224,210,.14);
+  border-radius: 13px;
+}
+.simulation-proof__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.simulation-proof__head > span:not(.sim-quality) {
+  color: var(--muted);
+  font-size: 9px;
+}
+.simulation-proof__head a {
+  margin-left: auto;
+  color: var(--accent);
+  font-size: 9px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.sim-quality {
+  display: inline-flex;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font: 800 8px 'Space Grotesk', sans-serif;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+.sim-quality--strict {
+  color: #07150f;
+  background: var(--good);
+}
+.sim-quality--comparable {
+  color: #07191a;
+  background: #77e8dc;
+}
+.sim-quality--raw {
+  color: #211804;
+  background: var(--warm);
+}
+.simulation-loadout {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0,1fr));
+  gap: 7px;
+  margin-top: 10px;
+}
+.simulation-loadout__member {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  padding: 9px;
+  background: rgba(255,255,255,.025);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.simulation-loadout__member b {
+  overflow: hidden;
+  color: var(--ink);
+  font: 700 10px 'Space Grotesk', sans-serif;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.simulation-loadout__member span {
+  overflow: hidden;
+  color: var(--ink-dim);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.simulation-loadout__member small {
+  color: var(--muted);
+  font-size: 8px;
+  line-height: 1.45;
+}
+.simulation-assumptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 9px;
+}
+.simulation-assumptions span {
+  padding: 4px 6px;
+  color: var(--muted);
+  background: rgba(255,255,255,.025);
+  border-radius: 7px;
+  font-size: 8px;
+}
+.simulation-warning {
+  margin: 9px 0 0;
+  color: var(--muted);
+  font-size: 8.5px;
+  line-height: 1.5;
+}
+
+@media (max-width: 900px) {
+  .simulation-loadout { grid-template-columns: 1fr 1fr; }
+  .sim-filters { justify-content: flex-start; max-width: none; }
+}
+@media (max-width: 620px) {
+  .sim-section { padding: 18px; }
+  .sim-status { align-items: flex-start; flex-direction: column; }
+  .sim-status span { text-align: left; }
+  .simulation-proof__head { align-items: flex-start; flex-wrap: wrap; }
+  .simulation-proof__head a { margin-left: 0; width: 100%; }
+  .simulation-loadout { grid-template-columns: 1fr; }
+}
+
+
+/* Exact constellation evidence attached to numerical simulations */
+.simulation-constellations {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 14px;
+  margin-top: 10px;
+  padding: 9px 11px;
+  background: rgba(244, 200, 106, .045);
+  border: 1px solid rgba(244, 200, 106, .14);
+  border-radius: 10px;
+}
+.simulation-constellations b {
+  color: var(--accent);
+  font: 700 10px 'Space Grotesk', sans-serif;
+}
+.simulation-constellations span {
+  color: var(--ink-dim);
+  font: 600 10px 'Space Grotesk', sans-serif;
+  text-align: right;
+}
+.sim-filters {
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  max-width: 720px;
+}
+@media (max-width: 720px) {
+  .simulation-constellations {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .simulation-constellations span { text-align: left; }
+  .sim-filters { max-width: none; }
+}

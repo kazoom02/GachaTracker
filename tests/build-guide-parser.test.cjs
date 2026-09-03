@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { htmlToLines, parseGenshinGG, parseTeamGuide, inferArchetype } = require('../server/build-guide-core.cjs');
+const { htmlToLines, parseGenshinGG, parseTeamGuide, parseKQMLimitedRosterTeams, inferArchetype } = require('../server/build-guide-core.cjs');
 
 const gg = `
 <html><body>
@@ -53,6 +53,32 @@ assert.equal(inferArchetype('Arlecchino Pure Pyro Team #2','Arlecchino'), 'Pure 
 assert(htmlToLines('<p>A &amp; B</p>').includes('A & B'));
 console.log('build guide parser tests passed');
 
+const kqmHtml = `
+<html><body>
+<h2>Forward Melt Enabler</h2>
+<h3>Limited Roster Alternatives</h3>
+<p>These teams are meant for newer players whose limited roster prevents them from using the teams above.</p>
+<p>Lohen — Xiangling — Bennett — Kaeya / Rosaria</p>
+<p>This is a variation of the Double Cryo, Double Pyro Melt archetype.</p>
+<h2>Burnmelt & Reverse Melt</h2>
+<h3>Limited Roster Alternatives</h3>
+<p>Lohen — Xiangling — Bennett — Sucrose</p>
+<p>This is a more accessible Reverse Melt team.</p>
+<h2>Freeze & Mono Cryo</h2>
+<h3>Limited Roster Alternatives</h3>
+<p>Lohen — Sucrose / Prune — Xingqiu — Kaeya</p>
+<p>This is a lower-cost Freeze team.</p>
+</body></html>`;
+
+const budget = parseKQMLimitedRosterTeams(kqmHtml, 'Lohen');
+assert.equal(budget.length, 5);
+assert(budget.every(team => team.tier === 'F2P' && team.budget === true));
+assert(budget.some(team => team.members.map(m => m.name).join('|') === 'Lohen|Xiangling|Bennett|Sucrose'));
+assert(budget.some(team => team.members.some(m => m.name === 'Rosaria')));
+assert(budget.some(team => team.members.map(m => m.name).join('|') === 'Lohen|Sucrose|Xingqiu|Kaeya'));
+console.log('KQM limited-roster parser tests passed');
+
+
 (async () => {
   const { getBuildGuide } = require('../server/build-guide-core.cjs');
   const mockFetch = async (url) => {
@@ -64,4 +90,10 @@ console.log('build guide parser tests passed');
   assert.equal(traveler.teams[0].reaction, 'Hyperbloom');
   assert(traveler.sources.some(source => /KQM/.test(source.label)));
   console.log('traveler fallback tests passed');
+
+  const lohen = await getBuildGuide({ id:'lohen', name:'Lohen', guideName:'Lohen', ggSlug:'lohen', teamSlug:'lohen', rarity:'5' }, mockFetch);
+  assert(lohen.budgetTeams.length >= 4);
+  assert(lohen.budgetTeams.some(team => team.members.map(member => member.name).join('|') === 'Lohen|Xiangling|Bennett|Sucrose'));
+  assert(lohen.sources.some(source => /Limited Roster/i.test(source.label)));
+  console.log('Lohen fallback budget tests passed');
 })().catch((error) => { console.error(error); process.exitCode = 1; });

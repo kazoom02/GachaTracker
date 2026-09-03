@@ -156,9 +156,31 @@ Traveler elements have explicit guide-backed team fallbacks because the current 
 dedicated pages for them.
 
 **Odette remains a curated exception:** her compatible published DPS calculations stay in
-`public/js/build-data.js`, so her numerical rankings are not replaced by a generic qualitative tier. For
-characters without a compatible simulation, Convene preserves the source team order/tier and deliberately
-does **not** invent DPS numbers.
+`public/js/build-data.js`, so her numerical rankings are not replaced by a generic qualitative tier.
+
+### Numerical theorycraft
+
+Build pages also query the public **Simpact / gcsim** database through `/api/sim-teams`. When compatible
+validated simulations exist, Convene shows the exact team DPS together with every character constellation,
+weapon/refinement, artifact set, talent levels, target assumptions, iteration count, and a link to the exact
+gcsim config. Numerical results are grouped by investment and methodology instead of blindly sorting every
+public database number together:
+
+- **KQMS-like**: Lv.100 / 10% RES target, at least 1000 iterations, at least 90 seconds mean duration, random
+  execution delays, and the KQM-standard clear-particle energy line.
+- **Comparable gcsim**: Lv.100 / 10% RES target, at least 1000 iterations and at least 60 seconds mean duration.
+- **Validated gcsim**: accepted gcsim database entries that are useful evidence but may use a different standard.
+- **F2P Gear**: all non-Traveler 5-stars at C0 and no 5-star weapons.
+- **Budget Roster**: F2P Gear plus at most one non-focus 5-star teammate.
+- **4★ Supports**: the focus character plus only 4-star/free support slots.
+- **Low-Const 4★**: the same 4-star-support constraint, with every non-focus 4-star capped at C2.
+- **Mid-Const 4★**: the same constraint, with every non-focus 4-star capped at C4.
+
+The site preserves the exact 4-star constellation used by each simulation (for example Bennett C1, Xiangling
+C4, Sucrose C6) and labels it as a **simulation assumption**, not an invented minimum requirement. The server
+scans multiple DPS-sorted pages before applying F2P/4-star filters so lower-investment teams are less likely to
+be crowded out by high-investment uploads. If no trustworthy numerical coverage exists for a character, the
+multi-source guide/theorycraft ranking remains available and Convene does not fabricate DPS.
 
 ### Account optimizer
 
@@ -176,8 +198,9 @@ the unrestricted source ranking:
   may remain unknown.
 - Missing wish-history records are always **Unknown**, never automatically “not owned.”
 
-The live build endpoint constructs its own allow-listed source URLs; it does not accept arbitrary URLs from
-the browser. This keeps the serverless fetcher narrowly scoped to the two build-guide sites.
+The live endpoints construct their own allow-listed source URLs; they do not accept arbitrary URLs from the
+browser. Current build evidence comes from Genshin.gg, Genshin-Builds.com, KQM limited-roster guidance, and
+Simpact/gcsim numerical simulations (with gcsim's own metadata files used to resolve exact names/rarities).
 
 ### Enable Google Drive (optional)
 1. In [Google Cloud Console](https://console.cloud.google.com/): create a project.

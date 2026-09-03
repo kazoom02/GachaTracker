@@ -22,3 +22,8 @@
   from = "/api/build-guide"
   to = "/.netlify/functions/build-guide"
   status = 200
+
+[[redirects]]
+  from = "/api/sim-teams"
+  to = "/.netlify/functions/sim-teams"
+  status = 200

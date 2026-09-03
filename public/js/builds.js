@@ -1,7 +1,7 @@
 import { iconCandidates } from './config.js?v=20260903b';
 import { getActiveProfile, getData, getProfiles, switchProfile } from './store.js?v=20260903b';
 import { findBuildCharacter } from './build-data.js?v=20260903b';
-import { GENSHIN_BUILD_CATALOG, canonicalCharacterName, getCatalogCharacter, guideQuery } from './build-catalog.js?v=20260903b';
+import { GENSHIN_BUILD_CATALOG, canonicalCharacterName, getCatalogCharacter, guideQuery, simQuery } from './build-catalog.js?v=20260903c';
 import { analyzeGenshinOwnership, buildGuideVariantTeams, characterHistoryStatus, rankBuildableTeams, rankClosestTeams, suggestAlternativeLineups, suggestTeamSubstitutions, teamHistoryStatus, weaponHistoryStatus } from './build-account.js?v=20260903e';
 import { clearRosterOverrides, getRosterOverrides, setRosterOverride } from './build-roster.js?v=20260903b';
 import { generateAccountTheorycrafts } from './build-theorycraft.js?v=20260903a';
@@ -9,9 +9,13 @@ import { generateAccountTheorycrafts } from './build-theorycraft.js?v=20260903a'
 const $ = (selector, root = document) => root.querySelector(selector);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[char]));
 const fmt = new Intl.NumberFormat('en-US');
-const LIVE_CACHE_KEY = 'convene-build-guide-cache-v1';
+function hasPublishedDps(value) { return value !== null && value !== undefined && value !== '' && Number.isFinite(Number(value)); }
+const LIVE_CACHE_KEY = 'convene-build-guide-cache-v2';
 const LIVE_FRESH_MS = 12 * 60 * 60 * 1000;
 const LIVE_STALE_MS = 7 * 24 * 60 * 60 * 1000;
+const SIM_CACHE_KEY = 'convene-sim-team-cache-v1';
+const SIM_FRESH_MS = 6 * 60 * 60 * 1000;
+const SIM_STALE_MS = 3 * 24 * 60 * 60 * 1000;
 
 const initialCharacterId = new URLSearchParams(location.search).get('character');
 let catalogEntry = getCatalogCharacter(initialCharacterId || 'odette');
@@ -22,6 +26,8 @@ let reactionFilter = 'all';
 let optimizerReaction = 'all';
 let buildableOnly = false;
 let rosterViewFilter = 'all';
+let simFilter = 'comparable';
+let simulationData = { loading: false, supported: false, teams: [], accountCandidates: [], strict: [], comparable: [], f2p: [], budget: [], fourStarSupports: [], lowConstFourStarSupports: [], midConstFourStarSupports: [], methodology: [] };
 let currentView = initialCharacterId ? 'detail' : 'roster';
 let loadToken = 0;
 let previewSerial = 0;
@@ -51,6 +57,23 @@ function writeCache(id, data) {
 }
 function cachedGuide(id, maxAge = LIVE_FRESH_MS) {
   const item = readCache()[id];
+  if (!item?.data || Date.now() - Number(item.savedAt || 0) > maxAge) return null;
+  return item.data;
+}
+
+function readSimCache() {
+  try { return JSON.parse(localStorage.getItem(SIM_CACHE_KEY) || '{}') || {}; } catch { return {}; }
+}
+function writeSimCache(id, data) {
+  try {
+    const cache = readSimCache();
+    cache[id] = { savedAt: Date.now(), data };
+    const entries = Object.entries(cache).sort((a,b) => (b[1]?.savedAt || 0) - (a[1]?.savedAt || 0)).slice(0, 30);
+    localStorage.setItem(SIM_CACHE_KEY, JSON.stringify(Object.fromEntries(entries)));
+  } catch { /* storage may be disabled */ }
+}
+function cachedSimData(id, maxAge = SIM_FRESH_MS) {
+  const item = readSimCache()[id];
   if (!item?.data || Date.now() - Number(item.savedAt || 0) > maxAge) return null;
   return item.data;
 }
@@ -87,18 +110,22 @@ function setGuideStatus(message = '', type = 'info') {
 }
 
 function normalizeLiveGuide(data, entry) {
-  const teams = (data.teams || []).map((team, index) => ({
+  const normalizeTeams = (rows, { budget = false } = {}) => (rows || []).map((team, index) => ({
     ...team,
     rank: Number(team.rank || index + 1),
     reaction: team.reaction || 'General',
+    isBudget: budget || Boolean(team.budget || team.f2p),
     members: (team.members || []).map((member) => ({ ...member, name: canonicalCharacterName(member.name), minConstellation: Number(member.minConstellation || 0) })),
   }));
+  const teams = normalizeTeams(data.teams || []);
+  const budgetTeams = normalizeTeams(data.budgetTeams || [], { budget: true });
   return {
     ...data,
     id: entry.id,
     name: entry.name,
     rarity: entry.rarity,
     teams,
+    budgetTeams,
     variants: data.variants || [],
     weapons: data.weapons || [],
     artifacts: data.artifacts || [],
@@ -109,13 +136,86 @@ function normalizeLiveGuide(data, entry) {
   };
 }
 
+
+function normalizeSimulationData(data) {
+  const normalize = (rows = []) => rows.map((sim, index) => ({
+    rank: index + 1,
+    name: sim.description || `gcsim team ${index + 1}`,
+    reaction: 'gcsim',
+    tier: sim.quality || 'Validated gcsim',
+    dps: Number(sim.dps || 0),
+    isSimulation: true,
+    simulation: sim,
+    note: sim.description || 'Validated gcsim database entry.',
+    members: (sim.team || []).map((member) => ({
+      name: canonicalCharacterName(member.name || member.key),
+      role: member.key && (catalogEntry.gcsimKeys || []).includes(member.key) ? 'Focus character' : 'Sim teammate',
+      minConstellation: Number(member.constellation || 0),
+      requirementKind: 'simulation',
+      simMember: member,
+    })),
+  }));
+
+  return {
+    ...data,
+    teams: normalize(data.teams || []),
+    accountCandidates: normalize(data.accountCandidates || data.teams || []),
+    strict: normalize(data.strict || []),
+    comparable: normalize(data.comparable || []),
+    f2p: normalize(data.f2p || []),
+    budget: normalize(data.budget || []),
+    fourStarSupports: normalize(data.fourStarSupports || []),
+    lowConstFourStarSupports: normalize(data.lowConstFourStarSupports || []),
+    midConstFourStarSupports: normalize(data.midConstFourStarSupports || []),
+  };
+}
+
+async function loadSimulationData(entry, token) {
+  // Yield once so loadCharacter can install the new character before cached sim data renders.
+  await Promise.resolve();
+  const fresh = cachedSimData(entry.id, SIM_FRESH_MS);
+  if (fresh) {
+    simulationData = normalizeSimulationData(fresh);
+    renderSimulationSection();
+    renderOptimizer();
+    renderMethod();
+    return;
+  }
+
+  simulationData = { loading: true, supported: false, teams: [], accountCandidates: [], strict: [], comparable: [], f2p: [], budget: [], fourStarSupports: [], lowConstFourStarSupports: [], midConstFourStarSupports: [], methodology: [] };
+  renderSimulationSection();
+  try {
+    const response = await fetch(`/api/sim-teams?${simQuery(entry)}`, { headers: { Accept: 'application/json' } });
+    if (!response.ok) throw new Error(`Simulation API returned ${response.status}`);
+    const data = await response.json();
+    if (token !== loadToken) return;
+    simulationData = normalizeSimulationData(data);
+    writeSimCache(entry.id, data);
+    renderSimulationSection();
+    renderOptimizer();
+    renderTeams();
+    renderBudgetTeams();
+    renderMethod();
+  } catch (error) {
+    if (token !== loadToken) return;
+    const stale = cachedSimData(entry.id, SIM_STALE_MS);
+    if (stale) {
+      simulationData = { ...normalizeSimulationData(stale), stale: true, loadError: error.message };
+    } else {
+      simulationData = { loading: false, supported: false, teams: [], accountCandidates: [], strict: [], comparable: [], f2p: [], budget: [], fourStarSupports: [], lowConstFourStarSupports: [], midConstFourStarSupports: [], methodology: [], loadError: error.message };
+    }
+    renderSimulationSection();
+    renderMethod();
+  }
+}
+
 function fallbackGuide(entry, detail = '') {
   return {
     id: entry.id, game:'genshin', live:true, degraded:true, name:entry.name, rarity:entry.rarity,
     element:'Unknown', weaponType:'Unknown', role:'Character', patch:'7.0', updated:new Date().toISOString().slice(0,10),
     summary:`Convene has ${entry.name} in the current Genshin roster, but the live build sources could not be normalized right now.`,
     quick:{ bestTeam:'Guide temporarily unavailable', bestTeamDps:null, bestTeamTier:'', bestWeapon:'—', bestArtifact:'—' },
-    teams:[], variants:[], weapons:[], artifacts:[], stats:{main:[],sub:[],alternativeCirclet:'',notes:[]},
+    teams:[], budgetTeams:[], variants:[], weapons:[], artifacts:[], stats:{main:[],sub:[],alternativeCirclet:'',notes:[]},
     assumptions:['Live guide data could not be loaded. The character remains available in the selector and account roster, but Convene will not invent recommendations.'],
     sources:[{label:'Genshin.gg Builds',url:'https://genshin.gg/builds/',use:'Live build source'},{label:'Genshin-Builds.com Teams',url:'https://genshin-builds.com/en/teams',use:'Live team source'}],
     loadError:detail,
@@ -128,7 +228,10 @@ async function loadCharacter(entry) {
   catalogEntry = entry;
   reactionFilter = 'all';
   optimizerReaction = 'all';
+  simFilter = 'comparable';
   buildableOnly = false;
+  simulationData = { loading: true, supported: false, teams: [], accountCandidates: [], strict: [], comparable: [], f2p: [], budget: [], fourStarSupports: [], lowConstFourStarSupports: [], midConstFourStarSupports: [], methodology: [] };
+  void loadSimulationData(entry, token);
   const curated = findBuildCharacter(entry.id);
   if (curated) {
     character = curated;
@@ -323,7 +426,9 @@ function renderAccountInsight() {
 
 function memberCard(member) {
   const status = characterHistoryStatus(member.name, ownership, member.minConstellation || 0, overrides);
-  const requirement = Number(member.minConstellation || 0) ? `C${member.minConstellation} required` : 'C0+';
+  const requirement = member.requirementKind === 'simulation'
+    ? `Sim C${Number(member.minConstellation || 0)}`
+    : Number(member.minConstellation || 0) ? `C${member.minConstellation} required` : 'C0+';
   return `<div class="build-unit build-unit--${status.state}">
     ${imageTile(member.name)}
     <div class="build-unit__copy"><b>${esc(member.name)}</b><small>${esc(member.role || '')}</small></div>
@@ -351,9 +456,21 @@ function enrichVariantTeam(team) {
   };
 }
 
-function optimizerTeamPool() {
+function sourceTeamPool() {
   const variants = buildGuideVariantTeams(character?.variants || []).map(enrichVariantTeam);
-  return [...(character?.teams || []), ...variants];
+  const seen = new Set();
+  const simulations = [...(simulationData?.comparable || []), ...(simulationData?.accountCandidates || simulationData?.teams || [])]
+    .filter((team) => {
+      const id = team.simulation?.id || team.simulation?.shareKey || `${team.dps}:${(team.members || []).map((member) => `${member.name}C${member.minConstellation || 0}`).join('|')}`;
+      if (seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  return [...simulations, ...(character?.teams || []), ...(character?.budgetTeams || []), ...variants];
+}
+
+function optimizerTeamPool() {
+  return sourceTeamPool();
 }
 
 function previewMemberCard(member) {
@@ -371,9 +488,11 @@ function lineupPreviewMarkup(baseTeam, targetTeam, context = '') {
   const changeText = removed.length || added.length
     ? `${removed.length ? `Remove ${removed.join(', ')}` : ''}${removed.length && added.length ? ' · ' : ''}${added.length ? `Add ${added.join(', ')}` : ''}`
     : 'Same four-character core with different source requirements.';
-  const sourceLabel = target.isVariant
-    ? 'Guide-backed variant · no comparable DPS assigned'
-    : Number.isFinite(Number(target.dps))
+  const sourceLabel = target.isBudget
+    ? 'F2P / Limited-roster source team · no published DPS assigned'
+    : target.isVariant
+      ? 'Guide-backed variant · no comparable DPS assigned'
+      : hasPublishedDps(target.dps)
       ? `${fmt.format(Number(target.dps))} published DPS for this exact source lineup`
       : `${target.tier ? `Tier ${target.tier} · ` : ''}source rank #${target.rank}`;
   const fit = account.fullyVerified ? 'Fully playable on this profile' : `${account.verified}/${target.members.length} verified · ${account.blockers.length} blocker${account.blockers.length === 1 ? '' : 's'}`;
@@ -385,7 +504,7 @@ function lineupPreviewMarkup(baseTeam, targetTeam, context = '') {
 function alternativeLineups(team) {
   const rows = suggestAlternativeLineups(
     team,
-    character.teams || [],
+    sourceTeamPool(),
     ownership,
     overrides,
     character.name,
@@ -397,7 +516,7 @@ function alternativeLineups(team) {
     const target = enrichVariantTeam(entry.team);
     const previewId = registerLineupPreview(team, target, 'Alternative lineup');
     const playable = entry.account.fullyVerified;
-    const label = target.isVariant ? 'Guide variant' : Number.isFinite(Number(target.dps)) ? `${fmt.format(Number(target.dps))} DPS` : `${target.tier ? `Tier ${target.tier} · ` : ''}source #${target.rank}`;
+    const label = target.isBudget ? `F2P / Limited roster #${target.rank}` : target.isVariant ? 'Guide variant' : hasPublishedDps(target.dps) ? `${fmt.format(Number(target.dps))} DPS` : `${target.tier ? `Tier ${target.tier} · ` : ''}source #${target.rank}`;
     return `<button type="button" class="alternative-lineup ${playable ? 'alternative-lineup--playable' : ''}" data-lineup-preview="${esc(previewId)}">
       <span class="alternative-lineup__icons">${(target.members || []).map((member) => imageTile(member.name, 'Character', 'character', 'alternative-lineup__icon')).join('')}</span>
       <span class="alternative-lineup__copy"><b>${esc(target.name)}</b><small>${esc(label)}</small><em>${playable ? '✓ Playable on my roster' : `${entry.account.blockers.length} blocker${entry.account.blockers.length === 1 ? '' : 's'}`}</em></span>
@@ -409,7 +528,7 @@ function replacementSuggestions(team, account) {
   if (account.fullyVerified || !account.blockers.length) return '';
   const suggestions = suggestTeamSubstitutions(
     team,
-    character.teams || [],
+    sourceTeamPool(),
     ownership,
     overrides,
     character.name,
@@ -444,6 +563,41 @@ function replacementSuggestions(team, account) {
 }
 
 
+
+function simulationDetailsMarkup(team) {
+  if (!team?.isSimulation || !team.simulation) return '';
+  const sim = team.simulation;
+  const qualityClass = sim.qualityRank >= 3 ? 'sim-quality--strict' : sim.qualityRank >= 2 ? 'sim-quality--comparable' : 'sim-quality--raw';
+  const investment = sim.investment || {};
+  const tags = [
+    investment.lowConstFourStarSupports ? '4★ supports ≤ C2' : null,
+    !investment.lowConstFourStarSupports && investment.midConstFourStarSupports ? '4★ supports ≤ C4' : null,
+    !investment.midConstFourStarSupports && investment.fourStarSupports ? '4★ teammate roster' : null,
+    investment.budgetRoster ? 'Budget roster' : null,
+    investment.f2pGear ? 'C0 5★ · no 5★ weapons' : null,
+  ].filter(Boolean);
+  const fourStarAssumptions = investment.supportConstellations || [];
+  return `<div class="simulation-proof">
+    <div class="simulation-proof__head">
+      <span class="sim-quality ${qualityClass}">${esc(sim.quality || 'Validated gcsim')}</span>
+      <span>${esc(tags.join(' · ') || 'Mixed investment')}</span>
+      <a href="${esc(sim.url || 'https://simpact.app/database')}" target="_blank" rel="noopener noreferrer">Open exact sim ↗</a>
+    </div>
+    <div class="simulation-loadout">${(sim.team || []).map((member) => `<div class="simulation-loadout__member">
+      <b>${esc(canonicalCharacterName(member.name || member.key))} · C${esc(member.constellation)}</b>
+      <span>${esc(member.weapon || member.weaponKey || 'Weapon')} · R${esc(member.refinement || 1)}${member.weaponRarity ? ` · ${esc(member.weaponRarity)}★` : ''}</span>
+      <small>${(member.sets || []).map((set) => `${esc(set.count)}pc ${esc(set.name)}`).join(' + ') || 'Artifact set not exposed'} · Talents ${esc(member.talents?.attack || 0)}/${esc(member.talents?.skill || 0)}/${esc(member.talents?.burst || 0)}</small>
+    </div>`).join('')}</div>
+    ${fourStarAssumptions.length ? `<div class="simulation-constellations"><b>4★ constellation assumptions for this DPS</b><span>${fourStarAssumptions.map(esc).join(' · ')}</span></div>` : ''}
+    <div class="simulation-assumptions">
+      <span>${sim.assumptions?.iteration ? `${fmt.format(sim.assumptions.iteration)} iterations` : 'Iteration count unavailable'}</span>
+      <span>${sim.assumptions?.durationMean ? `${Number(sim.assumptions.durationMean).toFixed(1)}s mean sim` : 'Duration unavailable'}</span>
+      <span>${sim.assumptions?.targetLevel ? `Lv.${sim.assumptions.targetLevel} target` : 'Target level unavailable'}${sim.assumptions?.resist != null ? ` · ${(Number(sim.assumptions.resist) * 100).toFixed(0)}% RES` : ''}</span>
+    </div>
+    <p class="simulation-warning"><b>Reproduction requirement:</b> this DPS number assumes the exact C0–C6 values, weapons/refinements, artifacts and rotation shown above. If your 4★ is below the simulated constellation, the team may still function, but this exact DPS result is no longer verified for your account.</p>
+  </div>`;
+}
+
 function theorycraftNotesMarkup(team) {
   if (!team?.isTheorycraft) return '';
   const notes = team.theorycraftNotes || [];
@@ -454,8 +608,10 @@ function theorycraftNotesMarkup(team) {
 }
 
 function metricForTeam(team, personalRank = null) {
-  if (Number.isFinite(Number(team.dps))) return `<div class="build-dps"><strong>${fmt.format(Number(team.dps))}</strong><span>PUBLISHED DPS</span></div>`;
+  if (team.isSimulation && hasPublishedDps(team.dps)) return `<div class="build-dps build-dps--sim"><strong>${fmt.format(Math.round(Number(team.dps)))}</strong><span>GCSIM DPS / TARGET</span></div>`;
+  if (hasPublishedDps(team.dps)) return `<div class="build-dps"><strong>${fmt.format(Number(team.dps))}</strong><span>PUBLISHED DPS</span></div>`;
   if (team.isTheorycraft) return `<div class="build-dps build-dps--theory"><strong>Account theorycraft</strong><span>${personalRank ? `TC #${personalRank} · ` : ''}NO PUBLISHED DPS</span></div>`;
+  if (team.isBudget) return `<div class="build-dps build-dps--budget"><strong>F2P / Budget</strong><span>${personalRank ? `YOUR #${personalRank} · ` : ''}LIMITED-ROSTER SOURCE</span></div>`;
   if (team.isVariant) return `<div class="build-dps build-dps--tier"><strong>Guide variant</strong><span>${personalRank ? `YOUR #${personalRank} · ` : ''}NO INVENTED DPS</span></div>`;
   const tier = team.tier && team.tier !== 'Guide' ? `Tier ${team.tier}` : 'Guide ranked';
   return `<div class="build-dps build-dps--tier"><strong>${esc(tier)}</strong><span>${personalRank ? `YOUR #${personalRank} · ` : ''}SOURCE #${esc(team.rank)}</span></div>`;
@@ -466,22 +622,28 @@ function teamCard(team, { personalRank = null, closest = false } = {}) {
   const rankText = personalRank ? `Your #${personalRank}` : `#${team.rank}`;
   const accountLabel = account.fullyVerified ? 'Roster verified' : `${account.verified}/${team.members.length} verified · ${account.blockers.length} blocker${account.blockers.length === 1 ? '' : 's'}`;
   const maxDps = Math.max(0, ...(character.teams || []).map((item) => Number(item.dps) || 0));
-  const meter = Number.isFinite(Number(team.dps)) && maxDps > 0 ? `<div class="build-meter"><i style="width:${Math.max(8, Number(team.dps) / maxDps * 100)}%"></i></div>` : '';
+  const meter = hasPublishedDps(team.dps) && maxDps > 0 ? `<div class="build-meter"><i style="width:${Math.max(8, Number(team.dps) / maxDps * 100)}%"></i></div>` : '';
   const blockers = closest ? `<div class="team-blockers">${account.blockers.map(({member,status}) => `<span class="blocker blocker--${status.state}"><b>${esc(member.name)}</b> ${esc(status.label)}</span>`).join('')}</div>` : '';
-  return `<article class="build-team ${personalRank === 1 || (!personalRank && team.rank === 1) ? 'build-team--best' : ''}">
+  return `<article class="build-team ${team.isBudget ? 'build-team--budget' : ''} ${personalRank === 1 || (!personalRank && team.rank === 1) ? 'build-team--best' : ''}">
     <div class="build-team__rank"><b>${esc(rankText)}</b><span>${esc(team.reaction || 'General')}</span></div>
     <div class="build-team__body">
       <div class="build-team__title"><div><h3>${esc(team.name)}</h3><p>${esc(team.note || '')}</p></div>${metricForTeam(team, personalRank)}</div>
       <div class="build-units">${(team.members || []).map(memberCard).join('')}</div>
+      ${simulationDetailsMarkup(team)}
       ${theorycraftNotesMarkup(team)}
       ${meter}${blockers}${team.isTheorycraft ? '' : replacementSuggestions(team, account)}
-      <div class="build-team__foot"><span>${team.isTheorycraft ? 'Guide-supported account theorycraft' : team.isVariant ? 'Guide-backed variant' : team.tier ? `Tier ${esc(team.tier)}` : Number.isFinite(Number(team.relative)) ? `${esc(team.relative)}% of source #1` : 'Source-ranked'}</span>${team.isVariant || team.isTheorycraft ? '' : `<span>Source rank #${esc(team.rank)}</span>`}<span class="account-fit ${account.fullyVerified ? 'account-fit--yes' : ''}">${esc(accountLabel)}</span></div>
+      <div class="build-team__foot"><span>${team.isSimulation ? `${esc(team.simulation?.quality || 'Validated gcsim')} · exact loadout` : team.isTheorycraft ? 'Guide-supported account theorycraft' : team.isBudget ? 'KQM limited-roster alternative' : team.isVariant ? 'Guide-backed variant' : team.tier ? `Tier ${esc(team.tier)}` : Number.isFinite(Number(team.relative)) ? `${esc(team.relative)}% of source #1` : 'Source-ranked'}</span>${team.isVariant || team.isTheorycraft ? '' : `<span>${team.isBudget ? 'Budget' : 'Source'} rank #${esc(team.rank)}</span>`}<span class="account-fit ${account.fullyVerified ? 'account-fit--yes' : ''}">${esc(accountLabel)}</span></div>
     </div>
   </article>`;
 }
 
 function reactions() {
-  return [...new Set([...(character.teams || []).map((team) => team.reaction), ...(character.variants || []).map((variant) => variant.reaction)].filter(Boolean))];
+  return [...new Set([
+    ...(simulationData?.teams || []).map((team) => team.reaction),
+    ...(character.teams || []).map((team) => team.reaction),
+    ...(character.budgetTeams || []).map((team) => team.reaction),
+    ...(character.variants || []).map((variant) => variant.reaction),
+  ].filter(Boolean))];
 }
 
 function filterTeams(list, reaction) { return reaction === 'all' ? list : list.filter((team) => team.reaction === reaction); }
@@ -489,6 +651,69 @@ function filterTeams(list, reaction) { return reaction === 'all' ? list : list.f
 function filterButtons(container, selected, includeBuildable = false) {
   const items = ['all', ...reactions()];
   container.innerHTML = items.map((item) => `<button class="team-filter ${selected === item ? 'team-filter--on' : ''}" data-filter-value="${esc(item)}">${item === 'all' ? 'All' : esc(item)}</button>`).join('') + (includeBuildable ? `<button class="team-filter team-filter--account ${buildableOnly ? 'team-filter--on' : ''}" id="buildable-filter">Buildable on my roster</button>` : '');
+}
+
+
+function simulationRowsForFilter() {
+  if (simFilter === 'strict') return simulationData.strict || [];
+  if (simFilter === 'f2p') return simulationData.f2p || [];
+  if (simFilter === 'budget') return simulationData.budget || [];
+  if (simFilter === 'fourstar') return simulationData.fourStarSupports || [];
+  if (simFilter === 'lowcons') return simulationData.lowConstFourStarSupports || [];
+  if (simFilter === 'midcons') return simulationData.midConstFourStarSupports || [];
+  if (simFilter === 'roster') return (simulationData.accountCandidates || simulationData.teams || []).filter((team) => teamHistoryStatus(team, ownership, overrides).fullyVerified);
+  if (simFilter === 'highest') return [...(simulationData.accountCandidates || simulationData.teams || [])].sort((a,b) => Number(b.dps || 0) - Number(a.dps || 0));
+  return simulationData.comparable?.length ? simulationData.comparable : simulationData.teams || [];
+}
+
+function renderSimulationSection() {
+  const section = $('#sim-section');
+  if (!section) return;
+  section.hidden = false;
+  const status = $('#sim-status');
+  const container = $('#sim-teams');
+  const filterBox = $('#sim-filters');
+
+  const filters = [
+    ['comparable','Best comparable'],
+    ['strict','KQMS-like'],
+    ['f2p','C0 5★ / no 5★ weapon'],
+    ['budget','Budget roster'],
+    ['fourstar','4★ teammates'],
+    ['lowcons','4★ ≤ C2'],
+    ['midcons','4★ ≤ C4'],
+    ['roster','My exact roster'],
+    ['highest','Highest recorded'],
+  ];
+  filterBox.innerHTML = filters.map(([key,label]) => `<button class="team-filter ${simFilter === key ? 'team-filter--on' : ''}" data-sim-filter="${key}">${label}</button>`).join('');
+  filterBox.querySelectorAll('[data-sim-filter]').forEach((button) => button.addEventListener('click', () => {
+    simFilter = button.dataset.simFilter;
+    renderSimulationSection();
+  }));
+
+  if (simulationData.loading) {
+    status.className = 'sim-status sim-status--loading';
+    status.innerHTML = '<b>Loading numerical theorycraft…</b><span>Convene is querying validated gcsim database entries and preserving their exact investment assumptions.</span>';
+    container.innerHTML = '';
+    return;
+  }
+
+  if (!simulationData.supported) {
+    status.className = 'sim-status sim-status--empty';
+    status.innerHTML = `<b>No validated gcsim database coverage found for ${esc(character?.name || catalogEntry.name)}.</b><span>Convene will keep using multi-source guide/theorycraft rankings rather than inventing a DPS number.${simulationData.loadError ? ` ${esc(simulationData.loadError)}` : ''}</span>`;
+    container.innerHTML = '';
+    return;
+  }
+
+  const rows = simulationRowsForFilter();
+  const coverage = simulationData.coverage || {};
+  status.className = 'sim-status sim-status--good';
+  status.innerHTML = `<b>${fmt.format(coverage.normalized || simulationData.teams.length)} validated configs analyzed across ${fmt.format(coverage.pagesLoaded || 1)} database page${Number(coverage.pagesLoaded || 1) === 1 ? '' : 's'}.</b><span>${fmt.format(coverage.comparable || 0)} comparable · ${fmt.format(coverage.f2p || 0)} C0/no-5★-weapon · ${fmt.format(coverage.fourStarSupports || 0)} 4★-teammate · ${fmt.format(coverage.lowConstFourStarSupports || 0)} low-const 4★. Quality is ranked before raw DPS.</span>`;
+
+  container.innerHTML = rows.length
+    ? rows.slice(0, 12).map((team, index) => teamCard({ ...team, rank:index + 1 })).join('')
+    : `<div class="build-empty"><b>No simulation matches this investment filter.</b><span>Try another filter. A missing F2P result means Convene did not find a validated database config in the fetched coverage — not that the team archetype is impossible.</span></div>`;
+  hydrateIcons(container);
 }
 
 function renderOptimizer() {
@@ -512,7 +737,7 @@ function renderOptimizer() {
   }));
 
   const verifiedMarkup = ranked.length
-    ? `<div class="optimizer-subhead"><b>Verified source / guide teams</b><span>Exact lineups already supported by the current guide data.</span></div>${ranked.slice(0, 6).map((entry, index) => teamCard(entry.team, { personalRank:index + 1 })).join('')}`
+    ? `<div class="optimizer-subhead"><b>Playable evidence-backed teams</b><span>Exact gcsim lineups are prioritized when their character/constellation assumptions match your roster, followed by premium, guide and F2P source teams.</span></div>${ranked.slice(0, 8).map((entry, index) => teamCard(entry.team, { personalRank:index + 1 })).join('')}`
     : '';
 
   const theoryMarkup = theorycrafts.length
@@ -539,7 +764,7 @@ function renderTeams() {
   $('#reaction-filters').querySelectorAll('[data-filter-value]').forEach((button) => button.addEventListener('click', () => { reactionFilter = button.dataset.filterValue; renderTeams(); hydrateIcons($('#teams')); }));
   $('#buildable-filter')?.addEventListener('click', () => { buildableOnly = !buildableOnly; renderTeams(); hydrateIcons($('#teams')); });
 
-  const hasDps = (character.teams || []).some((team) => Number.isFinite(Number(team.dps)));
+  const hasDps = (character.teams || []).some((team) => hasPublishedDps(team.dps));
   $('#teams-heading').textContent = hasDps ? 'Best quantified teams' : 'Best source-ranked teams';
   $('#teams-copy').textContent = hasDps
     ? 'Compatible published calculations are ordered by DPS; account ownership is layered on without changing those source numbers.'
@@ -547,6 +772,24 @@ function renderTeams() {
 
   $('#teams').innerHTML = teams.length ? teams.map((team) => teamCard(team)).join('') : `<div class="build-empty"><b>No team matches this filter.</b><span>${buildableOnly ? 'Disable the roster filter or add roster corrections.' : 'The live team source may not have a guide for this character yet.'}</span></div>`;
   hydrateIcons($('#teams'));
+}
+
+
+function renderBudgetTeams() {
+  const teams = character.budgetTeams || [];
+  const section = $('#budget-section');
+  section.hidden = !teams.length;
+  if (!teams.length) {
+    $('#budget-teams').innerHTML = '';
+    return;
+  }
+
+  $('#budget-teams').innerHTML = teams.map((team) => teamCard(team)).join('');
+  const buildable = teams.filter((team) => teamHistoryStatus(team, ownership, overrides).fullyVerified).length;
+  $('#budget-copy').textContent = buildable
+    ? `${buildable} of ${teams.length} limited-roster team${teams.length === 1 ? '' : 's'} can be verified on this profile. These trade ceiling for cheaper/easier teammates.`
+    : `Lower-cost teams sourced from KQM Limited Roster Alternatives. Confirm older/free characters in your roster if Convene cannot see them in wish history.`;
+  hydrateIcons($('#budget-teams'));
 }
 
 function renderVariants() {
@@ -578,7 +821,9 @@ function renderArtifacts() {
 
 function relevantRosterNames() {
   const names = new Set([character.name]);
+  for (const team of simulationData?.teams || []) for (const member of team.members || []) names.add(canonicalCharacterName(member.name));
   for (const team of character.teams || []) for (const member of team.members || []) names.add(canonicalCharacterName(member.name));
+  for (const team of character.budgetTeams || []) for (const member of team.members || []) names.add(canonicalCharacterName(member.name));
   for (const variant of character.variants || []) for (const name of variant.members || []) names.add(canonicalCharacterName(name));
   for (const archetype of character.theorycraft?.archetypes || []) {
     for (const slot of archetype.slots || []) {
@@ -606,16 +851,34 @@ function renderRosterEditor() {
 }
 
 function renderMethod() {
-  $('#assumptions').innerHTML = (character.assumptions || []).map((item) => `<li>${esc(item)}</li>`).join('');
-  $('#sources').innerHTML = (character.sources || []).map((source) => `<a class="build-source" href="${esc(source.url)}" target="_blank" rel="noopener noreferrer"><span><b>${esc(source.label)}</b><small>${esc(source.use || '')}</small></span><i aria-hidden="true">↗</i></a>`).join('');
+  const assumptions = [
+    ...(character.assumptions || []),
+    ...(simulationData.supported ? (simulationData.methodology || []) : []),
+  ];
+  const sources = [
+    ...(character.sources || []),
+    ...(simulationData.supported ? [{
+      label: 'Simpact / gcsim — Numerical Team Simulations',
+      url: simulationData.source?.url || 'https://simpact.app/database',
+      use: 'Exact team DPS, character constellations, weapons/refinements, artifacts, talents and simulation assumptions',
+    }, {
+      label: 'gcsim Documentation',
+      url: simulationData.source?.docs || 'https://docs.gcsim.app/',
+      use: 'Simulation engine methodology and config semantics',
+    }] : []),
+  ];
+  $('#assumptions').innerHTML = assumptions.map((item) => `<li>${esc(item)}</li>`).join('');
+  $('#sources').innerHTML = sources.map((source) => `<a class="build-source" href="${esc(source.url)}" target="_blank" rel="noopener noreferrer"><span><b>${esc(source.label)}</b><small>${esc(source.use || '')}</small></span><i aria-hidden="true">↗</i></a>`).join('');
 }
 
 function renderPersonalLayers() {
   resetLineupPreviews();
   renderHero();
   renderAccountInsight();
+  renderSimulationSection();
   renderOptimizer();
   renderTeams();
+  renderBudgetTeams();
   renderVariants();
   renderWeapons();
   renderRosterEditor();
@@ -630,8 +893,10 @@ function renderAll() {
   renderCharacterPicker();
   renderHero();
   renderAccountInsight();
+  renderSimulationSection();
   renderOptimizer();
   renderTeams();
+  renderBudgetTeams();
   renderVariants();
   renderWeapons();
   renderArtifacts();

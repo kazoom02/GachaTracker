@@ -5,6 +5,7 @@ import { GENSHIN_BUILD_CATALOG, canonicalCharacterName, getCatalogCharacter, gui
 import { analyzeGenshinOwnership, buildGuideVariantTeams, characterHistoryStatus, rankBuildableTeams, rankClosestTeams, suggestAlternativeLineups, suggestTeamSubstitutions, teamHistoryStatus, weaponHistoryStatus } from './build-account.js?v=20260903e';
 import { clearRosterOverrides, getRosterOverrides, setRosterOverride } from './build-roster.js?v=20260903b';
 import { generateAccountTheorycrafts } from './build-theorycraft.js?v=20260903a';
+import { crossSourceFlexTeams } from './build-flex-data.js?v=20260903a';
 
 const $ = (selector, root = document) => root.querySelector(selector);
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[char]));
@@ -458,6 +459,7 @@ function enrichVariantTeam(team) {
 
 function sourceTeamPool() {
   const variants = buildGuideVariantTeams(character?.variants || []).map(enrichVariantTeam);
+  const flexTeams = crossSourceFlexTeams(character?.id || catalogEntry?.id);
   const seen = new Set();
   const simulations = [...(simulationData?.comparable || []), ...(simulationData?.accountCandidates || simulationData?.teams || [])]
     .filter((team) => {
@@ -466,7 +468,7 @@ function sourceTeamPool() {
       seen.add(id);
       return true;
     });
-  return [...simulations, ...(character?.teams || []), ...(character?.budgetTeams || []), ...variants];
+  return [...simulations, ...(character?.teams || []), ...(character?.budgetTeams || []), ...flexTeams, ...variants];
 }
 
 function optimizerTeamPool() {
@@ -488,9 +490,11 @@ function lineupPreviewMarkup(baseTeam, targetTeam, context = '') {
   const changeText = removed.length || added.length
     ? `${removed.length ? `Remove ${removed.join(', ')}` : ''}${removed.length && added.length ? ' · ' : ''}${added.length ? `Add ${added.join(', ')}` : ''}`
     : 'Same four-character core with different source requirements.';
-  const sourceLabel = target.isBudget
-    ? 'F2P / Limited-roster source team · no published DPS assigned'
-    : target.isVariant
+  const sourceLabel = target.isFlexTeam
+    ? `${target.substitutionEvidence || 'Cross-source flex'} · no invented DPS`
+    : target.isBudget
+      ? 'F2P / Limited-roster source team · no published DPS assigned'
+      : target.isVariant
       ? 'Guide-backed variant · no comparable DPS assigned'
       : hasPublishedDps(target.dps)
       ? `${fmt.format(Number(target.dps))} published DPS for this exact source lineup`
@@ -551,7 +555,7 @@ function replacementSuggestions(team, account) {
       const requirement = Number(candidate.minConstellation || 0) > 0 ? ` · C${candidate.minConstellation}+ required` : '';
       return `<button type="button" class="replacement-option replacement-option--${esc(status.state)}" data-lineup-preview="${esc(previewId)}" title="Preview the complete team after this swap">
         ${imageTile(candidate.name, 'Character', 'character', 'replacement-option__icon')}
-        <span class="replacement-option__copy"><b>${esc(candidate.name)}</b><small>Exact one-slot source swap${esc(requirement)}</small><span>${esc(status.label)} · click to preview team</span></span>
+        <span class="replacement-option__copy"><b>${esc(candidate.name)}</b><small>${esc(candidate.evidence?.[0] || 'Exact one-slot source swap')}${esc(requirement)}</small><span>${esc(status.label)} · click to preview team</span></span>
         ${index === 0 && status.state === 'verified' ? '<i class="replacement-best">BEST OWNED</i>' : ''}
       </button>`;
     }).join('')}</div></div>`;
@@ -611,6 +615,7 @@ function metricForTeam(team, personalRank = null) {
   if (team.isSimulation && hasPublishedDps(team.dps)) return `<div class="build-dps build-dps--sim"><strong>${fmt.format(Math.round(Number(team.dps)))}</strong><span>GCSIM DPS / TARGET</span></div>`;
   if (hasPublishedDps(team.dps)) return `<div class="build-dps"><strong>${fmt.format(Number(team.dps))}</strong><span>PUBLISHED DPS</span></div>`;
   if (team.isTheorycraft) return `<div class="build-dps build-dps--theory"><strong>Account theorycraft</strong><span>${personalRank ? `TC #${personalRank} · ` : ''}NO PUBLISHED DPS</span></div>`;
+  if (team.isFlexTeam) return `<div class="build-dps build-dps--flex"><strong>Flex replacement</strong><span>${team.flexConfidence === 'high' ? 'HIGH SOURCE CONFIDENCE' : 'THEORYCRAFTED FROM SOURCE ROLE'}</span></div>`;
   if (team.isBudget) return `<div class="build-dps build-dps--budget"><strong>F2P / Budget</strong><span>${personalRank ? `YOUR #${personalRank} · ` : ''}LIMITED-ROSTER SOURCE</span></div>`;
   if (team.isVariant) return `<div class="build-dps build-dps--tier"><strong>Guide variant</strong><span>${personalRank ? `YOUR #${personalRank} · ` : ''}NO INVENTED DPS</span></div>`;
   const tier = team.tier && team.tier !== 'Guide' ? `Tier ${team.tier}` : 'Guide ranked';
@@ -631,8 +636,9 @@ function teamCard(team, { personalRank = null, closest = false } = {}) {
       <div class="build-units">${(team.members || []).map(memberCard).join('')}</div>
       ${simulationDetailsMarkup(team)}
       ${theorycraftNotesMarkup(team)}
+      ${team.isFlexTeam && team.flexNote ? `<div class="flex-evidence"><b>${esc(team.substitutionEvidence || 'Cross-source replacement')}</b><span>${esc(team.flexNote)}</span></div>` : ''}
       ${meter}${blockers}${team.isTheorycraft ? '' : replacementSuggestions(team, account)}
-      <div class="build-team__foot"><span>${team.isSimulation ? `${esc(team.simulation?.quality || 'Validated gcsim')} · exact loadout` : team.isTheorycraft ? 'Guide-supported account theorycraft' : team.isBudget ? 'KQM limited-roster alternative' : team.isVariant ? 'Guide-backed variant' : team.tier ? `Tier ${esc(team.tier)}` : Number.isFinite(Number(team.relative)) ? `${esc(team.relative)}% of source #1` : 'Source-ranked'}</span>${team.isVariant || team.isTheorycraft ? '' : `<span>${team.isBudget ? 'Budget' : 'Source'} rank #${esc(team.rank)}</span>`}<span class="account-fit ${account.fullyVerified ? 'account-fit--yes' : ''}">${esc(accountLabel)}</span></div>
+      <div class="build-team__foot"><span>${team.isSimulation ? `${esc(team.simulation?.quality || 'Validated gcsim')} · exact loadout` : team.isTheorycraft ? 'Guide-supported account theorycraft' : team.isFlexTeam ? `Cross-source flex · ${esc(team.flexConfidence || 'medium')} confidence` : team.isBudget ? 'KQM limited-roster alternative' : team.isVariant ? 'Guide-backed variant' : team.tier ? `Tier ${esc(team.tier)}` : Number.isFinite(Number(team.relative)) ? `${esc(team.relative)}% of source #1` : 'Source-ranked'}</span>${team.isVariant || team.isTheorycraft || team.isFlexTeam ? '' : `<span>${team.isBudget ? 'Budget' : 'Source'} rank #${esc(team.rank)}</span>`}<span class="account-fit ${account.fullyVerified ? 'account-fit--yes' : ''}">${esc(accountLabel)}</span></div>
     </div>
   </article>`;
 }
@@ -824,6 +830,7 @@ function relevantRosterNames() {
   for (const team of simulationData?.teams || []) for (const member of team.members || []) names.add(canonicalCharacterName(member.name));
   for (const team of character.teams || []) for (const member of team.members || []) names.add(canonicalCharacterName(member.name));
   for (const team of character.budgetTeams || []) for (const member of team.members || []) names.add(canonicalCharacterName(member.name));
+  for (const team of crossSourceFlexTeams(character?.id || catalogEntry?.id)) for (const member of team.members || []) names.add(canonicalCharacterName(member.name));
   for (const variant of character.variants || []) for (const name of variant.members || []) names.add(canonicalCharacterName(name));
   for (const archetype of character.theorycraft?.archetypes || []) {
     for (const slot of archetype.slots || []) {

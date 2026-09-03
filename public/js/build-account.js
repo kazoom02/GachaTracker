@@ -198,7 +198,7 @@ export function suggestTeamSubstitutions(
         status,
         targetTeam,
         targetAccount,
-        evidence: [targetTeam.isVariant ? 'Exact one-slot guide variant' : 'Exact one-slot source swap'],
+        evidence: [targetTeam.substitutionEvidence || (targetTeam.isVariant ? 'Exact one-slot guide variant' : 'Exact one-slot source swap')],
         score: (status.state === 'verified' ? 1000 : status.state === 'short' ? 160 : 20)
           + (targetAccount.fullyVerified ? 300 : 0)
           - targetAccount.blockers.length * 35

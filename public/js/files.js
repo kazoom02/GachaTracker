@@ -12,7 +12,7 @@ import {
   replaceWuwaPool,
   replaceAll,
   save,
-} from './store.js?v=20260930a';
+} from './store.js?v=20260930b';
 import {
   detectWuwaJsonSource,
   groupWuwaJson,

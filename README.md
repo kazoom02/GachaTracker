@@ -104,6 +104,9 @@ single-account browser data is migrated automatically into **My Account**. Link 
 imports, game exports, and clearing pulls affect only the selected profile. The **Everything**
 JSON and Google Drive backup include every profile.
 
+The Data panel can clear only **Genshin Impact** or only **Wuthering Waves** pulls from
+the selected profile. The other game's history and every other profile remain unchanged.
+
 | File | Game | Notes |
 | --- | --- | --- |
 | `.xlsx` | Genshin Impact | Reads **paimon.moe v3** workbooks directly, including the `⭐` rarity and `#Roll` ordering columns, plus Convene exports. |

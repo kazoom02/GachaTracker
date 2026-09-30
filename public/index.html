@@ -9,7 +9,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="styles.css?v=20260903a" />
+  <link rel="stylesheet" href="styles.css?v=20260930b" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js" defer></script>
 </head>
 <body data-game="genshin">
@@ -142,7 +142,12 @@
 
       <section class="block block--danger">
         <h3>Danger zone</h3>
-        <button id="clear-data" class="btn btn--danger block__btn">Clear this profile’s pulls</button>
+        <p class="muted block__note">Clear one game without changing the other game or any other profile.</p>
+        <div class="danger-actions">
+          <button id="clear-genshin" class="btn btn--danger" type="button">Clear Genshin pulls</button>
+          <button id="clear-wuwa" class="btn btn--danger" type="button">Clear Wuthering Waves pulls</button>
+          <button id="clear-data" class="btn btn--danger danger-actions__all" type="button">Clear both games</button>
+        </div>
       </section>
     </div>
   </div>
@@ -187,6 +192,6 @@
     </div>
   </div>
 
-  <script type="module" src="js/main.js?v=20260930a"></script>
+  <script type="module" src="js/main.js?v=20260930b"></script>
 </body>
 </html>

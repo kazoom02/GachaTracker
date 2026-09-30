@@ -43,7 +43,21 @@ const alt = store.createProfile('Alt Account');
 assert.equal(store.getActiveProfile().id, alt.id);
 assert.equal(store.getActiveProfile().pullCount, 0);
 store.replaceWuwaPool('1', [{ name: 'Alt Pull', rarity: 5, time: '2026-08-24 12:00:00' }]);
+store.replaceGenshinBanner('character', [{ name: 'Alt Wish', rarity: 5, time: '2026-08-24 12:01:00' }]);
 store.save();
+assert.equal(store.getActiveProfile().pullCount, 2);
+
+// Clearing one game affects only that game in the selected profile.
+assert.equal(store.clearGame('genshin'), 1);
+assert.equal(store.getData().genshin.character.length, 0);
+assert.equal(store.getData().wuwa['1'][0].name, 'Alt Pull');
+store.replaceGenshinBanner('character', [{ name: 'Alt Wish', rarity: 5, time: '2026-08-24 12:01:00' }]);
+assert.equal(store.clearGame('wuwa'), 1);
+assert.equal(store.getData().genshin.character[0].name, 'Alt Wish');
+assert.deepEqual(store.getData().wuwa, {});
+assert.throws(() => store.clearGame('honkai'), /unsupported game/i);
+store.replaceWuwaPool('1', [{ name: 'Alt Pull', rarity: 5, time: '2026-08-24 12:00:00' }]);
+assert.equal(store.clearGame('genshin'), 1);
 assert.equal(store.getActiveProfile().pullCount, 1);
 
 const main = store.getProfiles().find((profile) => profile.name === 'My Account');

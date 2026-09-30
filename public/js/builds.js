@@ -1,5 +1,5 @@
 import { iconCandidates } from './config.js?v=20260903b';
-import { getActiveProfile, getData, getProfiles, switchProfile } from './store.js?v=20260930a';
+import { getActiveProfile, getData, getProfiles, switchProfile } from './store.js?v=20260930b';
 import { findBuildCharacter } from './build-data.js?v=20260903b';
 import { GENSHIN_BUILD_CATALOG, canonicalCharacterName, getCatalogCharacter, guideQuery, simQuery } from './build-catalog.js?v=20260903c';
 import { analyzeGenshinOwnership, buildGuideVariantTeams, characterHistoryStatus, rankBuildableTeams, rankClosestTeams, suggestAlternativeLineups, suggestTeamSubstitutions, teamHistoryStatus, weaponHistoryStatus } from './build-account.js?v=20260903e';

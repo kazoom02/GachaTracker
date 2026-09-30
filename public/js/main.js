@@ -3,6 +3,7 @@ import { GAMES, GENSHIN_BANNERS, wuwaBanner, wuwaBannersFor, iconCandidates, set
 import {
   analyze,
   clearAll,
+  clearGame,
   createProfile,
   deleteProfile,
   exportProfilesBackup,
@@ -13,10 +14,10 @@ import {
   replaceAll,
   replaceProfilesBackup,
   switchProfile,
-} from './store.js?v=20260930a';
-import { importGenshin, importWuwa } from './import.js?v=20260930a';
+} from './store.js?v=20260930b';
+import { importGenshin, importWuwa } from './import.js?v=20260930b';
 import { driveEnabled, driveSave, driveLoad } from './drive.js?v=20260824f';
-import { exportGenshinXlsx, exportWuwaJson, exportFullBackup, importFromFile } from './files.js?v=20260930a';
+import { exportGenshinXlsx, exportWuwaJson, exportFullBackup, importFromFile } from './files.js?v=20260930b';
 import { filterHighlights } from './highlight-view.js?v=20260824g';
 
 let currentGame = 'genshin';
@@ -155,6 +156,17 @@ function deleteCurrentProfile() {
   renderBanners();
   closeProfileMenu();
   setPanelMsg(`Deleted ${active.name}. Switched to ${next.name}.`, 'ok');
+}
+
+function clearProfileGame(game, label) {
+  const profile = getActiveProfile();
+  if (!confirm(`Delete all ${label} pulls stored in “${profile.name}”? ${label === 'Genshin' ? 'Wuthering Waves' : 'Genshin'} pulls will be kept.`)) return;
+  const removed = clearGame(game);
+  selectedBanner[game] = null;
+  viewState.historyPage = 1;
+  renderProfiles();
+  renderBanners();
+  setPanelMsg(`Cleared ${pullLabel(removed)} from ${label} in ${profile.name}.`, 'ok');
 }
 
 function setGame(game) {
@@ -780,10 +792,14 @@ function init() {
   $('#drive-save').addEventListener('click', driveBackup);
   $('#drive-load').addEventListener('click', driveRestore);
 
+  $('#clear-genshin').addEventListener('click', () => clearProfileGame('genshin', 'Genshin'));
+  $('#clear-wuwa').addEventListener('click', () => clearProfileGame('wuwa', 'Wuthering Waves'));
+
   $('#clear-data').addEventListener('click', () => {
     const profile = getActiveProfile();
-    if (confirm(`Delete all pulls stored in “${profile.name}”? Other profiles will not be affected.`)) {
+    if (confirm(`Delete all Genshin and Wuthering Waves pulls stored in “${profile.name}”? Other profiles will not be affected.`)) {
       clearAll();
+      resetProfileView();
       renderProfiles();
       renderBanners();
       setPanelMsg(`Cleared all pulls from ${profile.name}.`, 'ok');

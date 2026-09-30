@@ -130,6 +130,24 @@ export function clearAll() {
   save();
 }
 
+export function clearGame(game) {
+  const key = String(game || '').toLowerCase();
+  let removed = 0;
+
+  if (key === 'genshin') {
+    removed = Object.values(DATA.genshin || {}).reduce((sum, pulls) => sum + (pulls?.length || 0), 0);
+    DATA.genshin = emptyData().genshin;
+  } else if (key === 'wuwa') {
+    removed = Object.values(DATA.wuwa || {}).reduce((sum, pulls) => sum + (pulls?.length || 0), 0);
+    DATA.wuwa = {};
+  } else {
+    throw new Error(`Unsupported game "${game}".`);
+  }
+
+  save();
+  return removed;
+}
+
 function pullCount(data) {
   const genshin = Object.values(data.genshin || {}).reduce((sum, pulls) => sum + (pulls?.length || 0), 0);
   const wuwa = Object.values(data.wuwa || {}).reduce((sum, pulls) => sum + (pulls?.length || 0), 0);

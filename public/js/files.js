@@ -12,7 +12,7 @@ import {
   replaceWuwaPool,
   replaceAll,
   save,
-} from './store.js?v=20260824f';
+} from './store.js?v=20260930a';
 import {
   detectWuwaJsonSource,
   groupWuwaJson,
@@ -76,7 +76,13 @@ export function exportWuwaJson() {
   for (const key of Object.keys(data)) {
     const list = data[key] || [];
     if (!list.length) continue;
-    banners[key] = list.map((p) => ({ name: p.name, rarity: p.rarity, itemType: p.itemType || '', time: p.time }));
+    banners[key] = list.map((p) => ({
+      resourceId: p.resourceId || '',
+      name: p.name,
+      rarity: p.rarity,
+      itemType: p.itemType || '',
+      time: p.time,
+    }));
     total += list.length;
   }
   if (!total) throw new Error('No Wuthering Waves pulls to export yet.');

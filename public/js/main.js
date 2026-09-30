@@ -13,10 +13,10 @@ import {
   replaceAll,
   replaceProfilesBackup,
   switchProfile,
-} from './store.js?v=20260824f';
-import { importGenshin, importWuwa } from './import.js?v=20260824f';
+} from './store.js?v=20260930a';
+import { importGenshin, importWuwa } from './import.js?v=20260930a';
 import { driveEnabled, driveSave, driveLoad } from './drive.js?v=20260824f';
-import { exportGenshinXlsx, exportWuwaJson, exportFullBackup, importFromFile } from './files.js?v=20260824f';
+import { exportGenshinXlsx, exportWuwaJson, exportFullBackup, importFromFile } from './files.js?v=20260930a';
 import { filterHighlights } from './highlight-view.js?v=20260824g';
 
 let currentGame = 'genshin';

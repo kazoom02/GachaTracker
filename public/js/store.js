@@ -3,7 +3,7 @@
 
 import { STORAGE_KEY, GENSHIN_BANNERS } from './config.js?v=20260824f';
 import { mergeGenshinHistory, sortGenshinHistory } from './genshin-merge.js?v=20260824f';
-import { mergeWuwaHistory } from './wuwa-merge.js?v=20260824f';
+import { mergeWuwaHistory, repairWuwaHistory } from './wuwa-merge.js?v=20260930a';
 
 const PROFILE_STATE_VERSION = 2;
 const PROFILE_BACKUP_TYPE = 'gacha-tracker-profiles-backup';
@@ -17,11 +17,15 @@ function emptyData() {
 
 function normalizeData(data = {}) {
   const base = emptyData();
+  const wuwa = {};
+  for (const [key, pulls] of Object.entries(data.wuwa || {})) {
+    wuwa[key] = repairWuwaHistory(pulls);
+  }
   return {
     version: 1,
     updatedAt: data.updatedAt || null,
     genshin: { ...base.genshin, ...(data.genshin || {}) },
-    wuwa: { ...(data.wuwa || {}) },
+    wuwa,
   };
 }
 
@@ -233,9 +237,9 @@ export function addGenshinPulls(bannerKey, pulls) {
   return merged.added;
 }
 
-// WuWa pulls have no per-pull id, and timestamps can differ by timezone between tools
-// (a wuwatracker file is UTC; the live API is server-local). Merging across sources by
-// content is therefore unreliable, so each pool is handled as a snapshot.
+// WuWa file exports may omit per-pull resource ids, and timestamps can differ by
+// timezone between tools (a wuwatracker file is UTC; the live API is server-local).
+// Reconcile snapshots by compatible identity plus their ordered overlap.
 
 // File import: the file is the authoritative full history for that pool — replace it.
 export function replaceWuwaPool(key, listAsc) {

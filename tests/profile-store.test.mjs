@@ -26,8 +26,8 @@ source = source
     "const mergeGenshinHistory = (stored, incoming) => ({ list: stored.concat(incoming), added: incoming.length }); const sortGenshinHistory = (pulls) => pulls.slice();"
   )
   .replace(
-    "import { mergeWuwaHistory } from './wuwa-merge.js?v=20260824f';",
-    "const mergeWuwaHistory = (stored, incoming) => ({ list: stored.concat(incoming), added: incoming.length });"
+    "import { mergeWuwaHistory, repairWuwaHistory } from './wuwa-merge.js?v=20260930a';",
+    "const mergeWuwaHistory = (stored, incoming) => ({ list: stored.concat(incoming), added: incoming.length }); const repairWuwaHistory = (pulls) => pulls.slice();"
   );
 
 const store = await import(`data:text/javascript,${encodeURIComponent(source)}`);
